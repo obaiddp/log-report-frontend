@@ -23,7 +23,6 @@ import {
   Skeleton,
   StatusBadge,
 } from '../components/ui'
-import { useAuth } from '../hooks/useAuth'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { destroy, get, getErrorMessage, shouldIgnoreRequest } from '../lib/api'
 import { inspectionCategoryOptions, inspectionStatusOptions } from '../lib/constants'
@@ -32,8 +31,6 @@ import type { Inspection, Paginated, TechnicalPersonnel } from '../types'
 
 export default function InspectionsPage() {
   const { notify } = useToast()
-  const { user } = useAuth()
-  const canManage = user?.role === 'admin' || user?.role === 'technician'
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebouncedValue(search)
   const [status, setStatus] = useState('')
@@ -138,12 +135,10 @@ export default function InspectionsPage() {
         title="Inspections"
         description="Review assignments, service categories, and resolution progress."
         actions={
-          canManage ? (
-            <Link className="button button--primary button--default" to="/inspection-form">
-              <Plus size={18} aria-hidden="true" />
-              New inspection
-            </Link>
-          ) : undefined
+          <Link className="button button--primary button--default" to="/inspection-form">
+            <Plus size={18} aria-hidden="true" />
+            New inspection
+          </Link>
         }
       />
 
@@ -230,9 +225,9 @@ export default function InspectionsPage() {
           action={
             hasFilters ? (
               <Button variant="secondary" onClick={clearFilters}>Clear filters</Button>
-            ) : canManage ? (
+            ) : (
               <Link className="button button--primary button--default" to="/inspection-form">New inspection</Link>
-            ) : undefined
+            )
           }
         />
       ) : (
@@ -280,16 +275,14 @@ export default function InspectionsPage() {
                       </td>
                       <td><StatusBadge value={inspection.status} /></td>
                       <td>
-                        {canManage && (
-                          <div className="row-actions">
-                            <Link className="icon-button" to={`/inspections/${inspection.id}/edit`} aria-label={`Edit inspection ${inspection.problem_id}`} title="Edit inspection">
-                              <Edit3 size={18} aria-hidden="true" />
-                            </Link>
-                            <IconButton label={`Delete inspection ${inspection.problem_id}`} onClick={() => setDeleteTarget(inspection)}>
-                              <Trash2 size={18} aria-hidden="true" />
-                            </IconButton>
-                          </div>
-                        )}
+                        <div className="row-actions">
+                          <Link className="icon-button" to={`/inspections/${inspection.id}/edit`} aria-label={`Edit inspection ${inspection.problem_id}`} title="Edit inspection">
+                            <Edit3 size={18} aria-hidden="true" />
+                          </Link>
+                          <IconButton label={`Delete inspection ${inspection.problem_id}`} onClick={() => setDeleteTarget(inspection)}>
+                            <Trash2 size={18} aria-hidden="true" />
+                          </IconButton>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -314,12 +307,10 @@ export default function InspectionsPage() {
                   <div><dt>Category</dt><dd>{titleCase(inspection.category)}{inspection.sub_category ? ` · ${titleCase(inspection.sub_category)}` : ''}</dd></div>
                   <div><dt>Personnel</dt><dd>{inspection.technical_personnel?.name || 'Unassigned'}</dd></div>
                 </dl>
-                {canManage && (
-                  <div className="record-card__actions">
-                    <Link className="button button--secondary button--small" to={`/inspections/${inspection.id}/edit`}><Edit3 size={17} aria-hidden="true" /> Edit</Link>
-                    <Button variant="ghost" size="small" onClick={() => setDeleteTarget(inspection)}><Trash2 size={17} aria-hidden="true" /> Delete</Button>
-                  </div>
-                )}
+                <div className="record-card__actions">
+                  <Link className="button button--secondary button--small" to={`/inspections/${inspection.id}/edit`}><Edit3 size={17} aria-hidden="true" /> Edit</Link>
+                  <Button variant="ghost" size="small" onClick={() => setDeleteTarget(inspection)}><Trash2 size={17} aria-hidden="true" /> Delete</Button>
+                </div>
               </article>
             ))}
           </div>

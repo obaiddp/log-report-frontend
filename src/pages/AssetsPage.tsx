@@ -14,7 +14,6 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useToast } from '../hooks/useToast'
 import {
@@ -48,8 +47,6 @@ function AssetTypeIcon({ type }: { type: string }) {
 
 export default function AssetsPage() {
   const { notify } = useToast()
-  const { user } = useAuth()
-  const canManage = user?.role === 'admin'
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebouncedValue(search)
   const [departmentId, setDepartmentId] = useState('')
@@ -156,12 +153,10 @@ export default function AssetsPage() {
         title="Asset register"
         description="Search, review, and maintain every registered IT asset."
         actions={
-          canManage ? (
-            <Link className="button button--primary button--default" to="/assets/new">
-              <Plus size={18} aria-hidden="true" />
-              Register asset
-            </Link>
-          ) : undefined
+          <Link className="button button--primary button--default" to="/assets/new">
+            <Plus size={18} aria-hidden="true" />
+            Register asset
+          </Link>
         }
       />
 
@@ -261,9 +256,9 @@ export default function AssetsPage() {
           action={
             hasFilters ? (
               <Button variant="secondary" onClick={clearFilters}>Clear filters</Button>
-            ) : canManage ? (
+            ) : (
               <Link className="button button--primary button--default" to="/assets/new">Register asset</Link>
-            ) : undefined
+            )
           }
         />
       ) : (
@@ -313,16 +308,14 @@ export default function AssetsPage() {
                           </span>
                         </td>
                         <td>
-                          {canManage && (
-                            <div className="row-actions">
-                              <Link className="icon-button" to={`/assets/${asset.id}/edit`} aria-label={`Edit ${asset.asset_tag}`} title="Edit asset">
-                                <Edit3 size={18} aria-hidden="true" />
-                              </Link>
-                              <IconButton label={`Delete ${asset.asset_tag}`} onClick={() => setDeleteTarget(asset)}>
-                                <Trash2 size={18} aria-hidden="true" />
-                              </IconButton>
-                            </div>
-                          )}
+                          <div className="row-actions">
+                            <Link className="icon-button" to={`/assets/${asset.id}/edit`} aria-label={`Edit ${asset.asset_tag}`} title="Edit asset">
+                              <Edit3 size={18} aria-hidden="true" />
+                            </Link>
+                            <IconButton label={`Delete ${asset.asset_tag}`} onClick={() => setDeleteTarget(asset)}>
+                              <Trash2 size={18} aria-hidden="true" />
+                            </IconButton>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -348,12 +341,10 @@ export default function AssetsPage() {
                   <div><dt>Memory</dt><dd>{asset.ram_gb ? `${asset.ram_gb} GB` : asset.ram || '—'}</dd></div>
                   <div><dt>Acquired</dt><dd>{formatDate(asset.acquired_at)}</dd></div>
                 </dl>
-                {canManage && (
-                  <div className="record-card__actions">
-                    <Link className="button button--secondary button--small" to={`/assets/${asset.id}/edit`}><Edit3 size={17} aria-hidden="true" /> Edit</Link>
-                    <Button variant="ghost" size="small" onClick={() => setDeleteTarget(asset)}><Trash2 size={17} aria-hidden="true" /> Delete</Button>
-                  </div>
-                )}
+                <div className="record-card__actions">
+                  <Link className="button button--secondary button--small" to={`/assets/${asset.id}/edit`}><Edit3 size={17} aria-hidden="true" /> Edit</Link>
+                  <Button variant="ghost" size="small" onClick={() => setDeleteTarget(asset)}><Trash2 size={17} aria-hidden="true" /> Delete</Button>
+                </div>
               </article>
             ))}
           </div>

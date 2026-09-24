@@ -1,69 +1,17 @@
-import axios, {
-  type AxiosRequestConfig,
-  type AxiosResponse,
-  type InternalAxiosRequestConfig,
-} from 'axios'
+import axios, { type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import type { FieldErrors } from '../types'
 
 export const API_BASE_URL = (
   import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 ).replace(/\/$/, '')
 
-const apiOrigin = (() => {
-  try {
-    return new URL(API_BASE_URL).origin
-  } catch {
-    return window.location.origin
-  }
-})()
-
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 20_000,
-  withCredentials: true,
-  withXSRFToken: true,
-  xsrfCookieName: 'XSRF-TOKEN',
-  xsrfHeaderName: 'X-XSRF-TOKEN',
   headers: {
     Accept: 'application/json',
   },
 })
-
-type UnauthorizedHandler = () => void
-let unauthorizedHandler: UnauthorizedHandler | null = null
-
-export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
-  unauthorizedHandler = handler
-}
-
-api.interceptors.response.use(
-  (response) => response,
-  (error: unknown) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      unauthorizedHandler?.()
-    }
-    return Promise.reject(error)
-  },
-)
-
-let csrfRequest: Promise<void> | null = null
-
-export async function ensureCsrfCookie(): Promise<void> {
-  if (!csrfRequest) {
-    csrfRequest = axios
-      .get(`${apiOrigin}/sanctum/csrf-cookie`, {
-        withCredentials: true,
-        withXSRFToken: true,
-        headers: { Accept: 'application/json' },
-      })
-      .then(() => undefined)
-      .finally(() => {
-        csrfRequest = null
-      })
-  }
-
-  return csrfRequest
-}
 
 export async function get<T>(
   url: string,
@@ -79,7 +27,6 @@ async function mutate<T>(
   data?: unknown,
   config?: AxiosRequestConfig,
 ): Promise<T> {
-  await ensureCsrfCookie()
   const response = await api.request<T>({
     ...config,
     method,
@@ -123,7 +70,6 @@ export function destroy<T>(
 export async function downloadCsv(
   params: Record<string, string | undefined>,
 ): Promise<AxiosResponse<Blob>> {
-  await ensureCsrfCookie()
   return api.get<Blob>('/v1/reports/export', {
     params,
     responseType: 'blob',
@@ -173,8 +119,4 @@ export function getFieldErrors(error: unknown): FieldErrors {
 
 export function shouldIgnoreRequest(error: unknown): boolean {
   return axios.isCancel(error) || (error instanceof DOMException && error.name === 'AbortError')
-}
-
-export type RequestConfigWithSignal = AxiosRequestConfig & {
-  signal?: InternalAxiosRequestConfig['signal']
 }

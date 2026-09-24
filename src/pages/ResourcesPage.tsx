@@ -54,8 +54,6 @@ interface ResourceFormState {
   territory: string
   status: string
   role: string
-  password: string
-  passwordConfirmation: string
 }
 
 const emptyForm: ResourceFormState = {
@@ -70,8 +68,6 @@ const emptyForm: ResourceFormState = {
   territory: '',
   status: 'active',
   role: 'user',
-  password: '',
-  passwordConfirmation: '',
 }
 
 const tabDetails: Array<{ id: ResourceKind; label: string; icon: typeof Building2; singular: string }> = [
@@ -95,8 +91,6 @@ function formFromRecord(record: ResourceRecord | null): ResourceFormState {
     territory: 'territory' in record ? record.territory ?? '' : '',
     status: record.status ?? 'active',
     role: 'role' in record ? record.role ?? 'user' : '',
-    password: '',
-    passwordConfirmation: '',
   }
 }
 
@@ -137,10 +131,6 @@ function ResourceDialog({
       if (!form.email.trim()) nextErrors.email = ['Enter the user email address.']
       else if (!/^\S+@\S+\.\S+$/.test(form.email)) nextErrors.email = ['Enter a valid email address.']
       if (!form.departmentId) nextErrors.department_id = ['Select a department.']
-      if (!record && form.password.length < 8) nextErrors.password = ['Use at least 8 characters for the new password.']
-      if (form.password && form.password !== form.passwordConfirmation) {
-        nextErrors.password_confirmation = ['Password confirmation does not match.']
-      }
     }
     if (kind === 'technical-personnel' && !form.departmentId) {
       nextErrors.department_id = ['Select a department.']
@@ -179,10 +169,6 @@ function ResourceDialog({
         payload.designation = form.designation.trim() || null
         payload.territory = form.territory.trim() || null
         payload.role = form.role
-        if (form.password) {
-          payload.password = form.password
-          payload.password_confirmation = form.passwordConfirmation
-        }
       }
     }
 
@@ -207,7 +193,7 @@ function ResourceDialog({
     <Modal
       open
       title={`${record ? 'Edit' : 'Add'} ${singular}`}
-      description="Changes are saved directly to the authenticated resource API."
+      description="Changes are saved directly to the resource API."
       onClose={onClose}
       size="large"
       footer={
@@ -291,22 +277,6 @@ function ResourceDialog({
             )}
           </FormField>
 
-          {kind === 'users' && (
-            <>
-              <FormField
-                label={record ? 'New password' : 'Password'}
-                required={!record}
-                error={errors.password?.[0]}
-                inputId="password"
-                hint={record ? 'Leave blank to keep the current password.' : 'At least 8 characters.'}
-              >
-                {(fieldProps) => <input {...fieldProps} type="password" autoComplete="new-password" value={form.password} onChange={(event) => update('password', event.target.value)} />}
-              </FormField>
-              <FormField label="Confirm password" required={!record} error={errors.password_confirmation?.[0]} inputId="password_confirmation" className="form-grid__full">
-                {(fieldProps) => <input {...fieldProps} type="password" autoComplete="new-password" value={form.passwordConfirmation} onChange={(event) => update('passwordConfirmation', event.target.value)} />}
-              </FormField>
-            </>
-          )}
         </div>
       </form>
     </Modal>

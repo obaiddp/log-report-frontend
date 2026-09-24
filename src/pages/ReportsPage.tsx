@@ -197,7 +197,7 @@ export default function ReportsPage() {
 
       <Panel className="export-callout">
         <span aria-hidden="true"><FileSpreadsheet size={25} /></span>
-        <div><h2>Need the underlying records?</h2><p>The CSV export uses the same authenticated API session and active date filters.</p></div>
+        <div><h2>Need the underlying records?</h2><p>The CSV export uses the active report filters and date period.</p></div>
         <Button variant="secondary" onClick={() => void handleExport()} loading={exporting} disabled={loading || Boolean(dateError)}>
           <Download size={18} aria-hidden="true" />
           Download CSV

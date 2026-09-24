@@ -4,7 +4,6 @@ import {
   ClipboardCheck,
   FilePlus2,
   LayoutDashboard,
-  LogOut,
   Menu,
   Moon,
   Settings2,
@@ -12,18 +11,17 @@ import {
   X,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../hooks/useAuth'
-import { cn, titleCase } from '../lib/format'
-import { Button, IconButton } from './ui'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { cn } from '../lib/format'
+import { IconButton } from './ui'
 
 const navigation = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true, roles: ['admin', 'technician'] },
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/assets', label: 'Assets', icon: Boxes },
   { to: '/inspections', label: 'Inspections', icon: ClipboardCheck },
-  { to: '/inspection-form', label: 'New inspection', icon: FilePlus2, roles: ['admin', 'technician'] },
-  { to: '/reports', label: 'Reports', icon: BarChart3, roles: ['admin', 'technician'] },
-  { to: '/resources', label: 'Resources', icon: Settings2, roles: ['admin'] },
+  { to: '/inspection-form', label: 'New inspection', icon: FilePlus2 },
+  { to: '/reports', label: 'Reports', icon: BarChart3 },
+  { to: '/resources', label: 'Resources', icon: Settings2 },
 ]
 
 const pageLabels: Record<string, string> = {
@@ -48,15 +46,11 @@ function getInitialTheme(): Theme {
 export default function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
-  const { logout, user } = useAuth()
   const location = useLocation()
-  const navigate = useNavigate()
   const mainRef = useRef<HTMLElement>(null)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const previousPath = useRef(location.pathname)
-  const loggingOut = useRef(false)
-  const [logoutBusy, setLogoutBusy] = useState(false)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -112,23 +106,6 @@ export default function AppShell() {
     }
   }, [mobileOpen])
 
-  const handleLogout = async () => {
-    if (loggingOut.current) return
-    loggingOut.current = true
-    setLogoutBusy(true)
-    try {
-      await logout()
-      navigate('/login', { replace: true })
-    } finally {
-      loggingOut.current = false
-      setLogoutBusy(false)
-    }
-  }
-
-  const visibleNavigation = navigation.filter(
-    (item) => !('roles' in item) || item.roles?.includes(user?.role || 'user'),
-  )
-
   const currentLabel = location.pathname.startsWith('/assets/')
     ? location.pathname.endsWith('/edit')
       ? 'Edit asset'
@@ -166,7 +143,7 @@ export default function AppShell() {
 
         <nav className="sidebar__nav">
           <p className="sidebar__label">Workspace</p>
-          {visibleNavigation.map(({ to, label, icon: Icon, end }) => (
+          {navigation.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
@@ -181,23 +158,12 @@ export default function AppShell() {
 
         <div className="sidebar__footer">
           <div className="user-summary">
-            <span className="avatar" aria-hidden="true">
-              {(user?.name || 'A').charAt(0).toUpperCase()}
-            </span>
+            <span className="avatar" aria-hidden="true">LR</span>
             <span>
-              <strong>{user?.name || 'Administrator'}</strong>
-              <small>{user?.role ? titleCase(user.role) : user?.designation || 'Operations user'}</small>
+              <strong>Asset Report</strong>
+              <small>Local workspace</small>
             </span>
           </div>
-          <Button
-            variant="ghost"
-            className="logout-button"
-            onClick={() => void handleLogout()}
-            loading={logoutBusy}
-          >
-            <LogOut size={19} aria-hidden="true" />
-            Log out
-          </Button>
         </div>
       </aside>
 
@@ -236,12 +202,10 @@ export default function AppShell() {
             </IconButton>
             <span className="topbar__divider" aria-hidden="true" />
             <div className="topbar__user">
-              <span className="avatar avatar--small" aria-hidden="true">
-                {(user?.name || 'A').charAt(0).toUpperCase()}
-              </span>
+              <span className="avatar avatar--small" aria-hidden="true">LR</span>
               <span>
-                <strong>{user?.name || 'Administrator'}</strong>
-                <small>{user?.email}</small>
+                <strong>Asset Operations</strong>
+                <small>Local workspace</small>
               </span>
             </div>
           </div>
