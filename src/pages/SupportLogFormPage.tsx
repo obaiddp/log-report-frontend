@@ -1,6 +1,4 @@
-import {
-  ArrowLeft,
-  CalendarDays,
+import {ArrowLeft, CalendarDays,
   ClipboardCheck,
   FileText,
   Info,
@@ -216,51 +214,163 @@ export default function SupportLogFormPage() {
 
   return (
     <div className="page-stack form-page">
-      <PageHeader
-        eyebrow="Service workflow"
-        title={isEditing ? 'Edit support log' : 'Create support log'}
-        description="Capture the request context, ownership, and resolution path in one auditable record."
-        actions={<Link className="button button--secondary button--default" to={isEditing ? `/support-logs/${id}` : '/support-logs'}><ArrowLeft size={18} aria-hidden="true" />Back to support logs</Link>}
-      />
 
       {options.error && <div className="notice-banner" role="status"><Info size={20} aria-hidden="true" /><div><strong>Some form options could not load</strong><p>{options.error}</p></div><Button variant="secondary" size="small" onClick={options.reload}>Retry options</Button></div>}
       {!canEditDetails && <div className="notice-banner" role="status"><ShieldCheck size={20} aria-hidden="true" /><div><strong>Assigned-work update</strong><p>Technical resources can update status, resolution notes, and internal remarks. Request details and assignment are managed by an administrator.</p></div></div>}
       {formError && <div className="form-error-summary" role="alert"><Info size={20} aria-hidden="true" /><div><strong>Unable to save this support log</strong><p>{formError}</p></div></div>}
       <FormErrorSummary errors={errors} ref={summaryRef} />
 
+
+
+
       <form onSubmit={handleSubmit} noValidate>
         <div className="form-layout">
           <div className="form-layout__main">
+
+            {/*
+            
+
+
+
+
+(8)
+Worked By / Technical Resource (Select)
+Afaq
+Haris
+Obaid
+Zulfiqar
+Mudassir
+
+            
+            */}
+
+            {/* (A) */}
             <Panel>
-              <SectionHeading title="Request details" description="Identify who reported the issue and where it belongs." />
-              <div className="form-grid form-grid--two">
-                <FormField label="Issue date" required error={fieldError(errors, 'issue_date')} inputId="issue_date">
+              <div className="form-grid form-grid--one">
+                <FormField 
+                  label="Issue date" 
+                  required error={fieldError(errors, 'issue_date')} 
+                  inputId="issue_date"
+                  >
                   {(fieldProps) => <div className="input-with-icon"><CalendarDays size={18} aria-hidden="true" /><input {...fieldProps} type="date" max={todayIso()} disabled={!canEditDetails} value={form.issueDate} onChange={(event) => updateField('issueDate', event.target.value)} /></div>}
-                </FormField>
-                <FormField label="Initiated by" required error={fieldError(errors, 'initiated_by')} inputId="initiated_by" hint="Enter the requester's name as it should appear in the log.">
-                  {(fieldProps) => <div className="input-with-icon"><UserRound size={18} aria-hidden="true" /><input {...fieldProps} disabled={!canEditDetails} value={form.initiatedBy} onChange={(event) => updateField('initiatedBy', event.target.value)} placeholder="e.g. Jordan Lee" autoComplete="name" /></div>}
-                </FormField>
-                <FormField label="Department" required error={fieldError(errors, 'department_id')} inputId="department_id" hint="Select the organizational home for this request.">
-                  {(fieldProps) => <select {...fieldProps} disabled={!canEditDetails} value={form.departmentId} onChange={(event) => updateField('departmentId', event.target.value)}><option value="">Select department</option>{options.departments.map((department) => <option value={department.id} key={department.id}>{department.name}</option>)}</select>}
-                </FormField>
-                <FormField label="Item type" required error={fieldError(errors, 'item_type_id')} inputId="item_type_id">
-                  {(fieldProps) => <select {...fieldProps} disabled={!canEditDetails} value={form.itemTypeId} onChange={(event) => updateField('itemTypeId', event.target.value)}><option value="">Select item type</option>{activeItemTypes.map((itemType) => <option value={itemType.id} key={itemType.id}>{itemType.name}</option>)}</select>}
-                </FormField>
-                <FormField label="Description" required error={fieldError(errors, 'description')} inputId="description" className="form-grid__full" hint="Describe the symptom, impact, and any useful troubleshooting context.">
-                  {(fieldProps) => <textarea {...fieldProps} rows={6} disabled={!canEditDetails} value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder="What is happening, and what support is needed?" />}
                 </FormField>
               </div>
             </Panel>
 
+
+                        {/* 
+                (B)              
+          (2)
+Initiated by (Input[type=text])
+
+(3)
+Department of Initiater (select)
+HR
+Sales
+SupplyChain 
+CEO of the company
+etc */}
+
             <Panel>
-              <SectionHeading title="Classification and ownership" description="Use consistent categories so reports remain useful to the whole team." />
-              <fieldset id="issue_types" className="choice-fieldset support-issue-types" aria-describedby={fieldError(errors, 'issue_types') ? 'issue_types-error' : undefined}>
-                <legend>Issue types <span className="required-mark" aria-hidden="true">*</span><span className="sr-only"> (required)</span></legend>
-                {activeIssueTypes.length === 0 ? <p className="text-muted">No active issue types are available.</p> : <div className="choice-grid choice-grid--two">{activeIssueTypes.map((issueType) => { const selected = form.issueTypes.some((value) => String(value) === String(issueType.id)); return <label className={selected ? 'choice-card choice-card--selected' : 'choice-card'} key={issueType.id}><input type="checkbox" value={issueType.id} disabled={!canEditDetails} checked={selected} onChange={(event) => toggleIssueType(issueType.id, event.target.checked)} /><span className="choice-card__icon" aria-hidden="true"><Tags size={21} /></span><span><strong>{issueType.name}</strong><small>{issueType.description || 'Support issue category'}</small></span></label> })}</div>}
-                {fieldError(errors, 'issue_types') && <p className="form-field__error" id="issue_types-error">{fieldError(errors, 'issue_types')}</p>}
-              </fieldset>
               <div className="form-grid form-grid--two">
-                <FormField label="Status" required error={fieldError(errors, 'status')} inputId="status" hint={!isEditing && user?.role !== 'admin' ? 'New technical-resource logs start in Open status.' : undefined}>
+                
+                <FormField 
+                  label="Initiated by" 
+                  required error={fieldError(errors, 'initiated_by')} 
+                  inputId="initiated_by">
+                  {(fieldProps) => <div className="input-with-icon"><UserRound size={18} aria-hidden="true" /><input {...fieldProps} disabled={!canEditDetails} value={form.initiatedBy} onChange={(event) => updateField('initiatedBy', event.target.value)} placeholder="e.g. Jordan Lee" autoComplete="name" /></div>}
+                </FormField>
+                
+                <FormField label="Department of Initiator" required error={fieldError(errors, 'department_id')} inputId="department_id">
+                  {(fieldProps) => <select {...fieldProps} disabled={!canEditDetails} value={form.departmentId} onChange={(event) => updateField('departmentId', event.target.value)}><option value="">Select department</option>{options.departments.map((department) => <option value={department.id} key={department.id}>{department.name}</option>)}</select>}
+                </FormField>
+          
+              </div>
+            </Panel>
+
+{/*
+(C)
+
+(4)
+Issue Type (Input[type=checkbox])
+Hardware
+Software
+Network
+
+(5)
+Item (Radio Input)
+Laptop
+Printer
+Projector
+Computer
+etc
+
+
+(6)
+Issue Description (TextArea)
+
+
+(7) 
+Status (Select)
+Sold
+In Progress (Select)
+ 	+ Indoor repairing
++ Outdoor repairing
+Solve
+*/}
+
+            <Panel>
+              <div className="form-grid form-grid--one">
+                
+                
+                <FormField 
+                  label="Item type" 
+                  required error={fieldError(errors, 'item_type_id')} 
+                  inputId="item_type_id">
+                  {(fieldProps) => <select {...fieldProps} disabled={!canEditDetails} value={form.itemTypeId} onChange={(event) => updateField('itemTypeId', event.target.value)}><option value="">Select item type</option>{activeItemTypes.map((itemType) => <option value={itemType.id} key={itemType.id}>{itemType.name}</option>)}</select>}
+                </FormField>
+
+                <fieldset 
+                  id="issue_types" 
+                  className="choice-fieldset support-issue-types" 
+                  aria-describedby={fieldError(errors, 'issue_types') ? 'issue_types-error' : undefined}>
+                  
+                    <legend>Issue types <span className="required-mark" aria-hidden="true">*</span>
+                    <span className="sr-only"> (required)</span></legend>
+
+                    {activeIssueTypes.length === 0 ? 
+                      <p className="text-muted">No active issue types are available.</p> : 
+                      <div className="choice-grid choice-grid--two">
+                        {activeIssueTypes.map((issueType) => { 
+                          const selected = form.issueTypes.some((value) => String(value) === String(issueType.id)); 
+                          return <label className={selected ? 'choice-card choice-card--selected' : 'choice-card'} 
+                          key={issueType.id}><input type="checkbox" value={issueType.id} disabled={!canEditDetails} 
+                          checked={selected} 
+                          onChange={(event) => toggleIssueType(issueType.id, event.target.checked)} 
+                          />
+                          
+                          <span className="choice-card__icon" aria-hidden="true"><Tags size={21} /></span>
+                          
+                          <span><strong>{issueType.name}</strong><small>{issueType.description || 'Support issue category'}</small></span></label> })}</div>}
+                    {fieldError(errors, 'issue_types') && <p className="form-field__error" id="issue_types-error">{fieldError(errors, 'issue_types')}</p>}
+              
+              </fieldset>
+                
+                <FormField label="Description" required error={fieldError(errors, 'description')} inputId="description" className="form-grid__full">
+                  {(fieldProps) => <textarea {...fieldProps} rows={6} disabled={!canEditDetails} value={form.description} onChange={(event) => updateField('description', event.target.value)} placeholder="What is happening, and what support is needed?" />}
+                </FormField>
+
+              </div>
+            </Panel>
+
+
+
+
+            {/* Form part 2 */}
+            <Panel>
+
+              <div className="form-grid form-grid--two">
+                <FormField label="Status" required error={fieldError(errors, 'status')} inputId="status" >
                   {(fieldProps) => <select {...fieldProps} disabled={!isEditing && user?.role !== 'admin'} value={form.status} onChange={(event) => updateField('status', event.target.value as SupportStatus)}>{supportStatusOptions.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select>}
                 </FormField>
                 <FormField label="Priority" required error={fieldError(errors, 'priority')} inputId="priority">
@@ -272,43 +382,8 @@ export default function SupportLogFormPage() {
               </div>
             </Panel>
 
-            <Panel>
-              <SectionHeading title="Resolution and context" description="Keep customer-facing resolution details separate from internal remarks." />
-              <div className="form-grid form-grid--two">
-                <FormField label="Resolution notes" error={fieldError(errors, 'resolution_notes')} inputId="resolution_notes" className="form-grid__full" hint="Required when status is Resolved or Closed.">
-                  {(fieldProps) => <textarea {...fieldProps} rows={5} value={form.resolutionNotes} onChange={(event) => updateField('resolutionNotes', event.target.value)} placeholder="Summarize the fix, outcome, or handoff…" />}
-                </FormField>
-                <FormField label="Internal remarks" error={fieldError(errors, 'internal_remarks')} inputId="internal_remarks" className="form-grid__full" hint="Optional context for the support team; handle sensitive information appropriately.">
-                  {(fieldProps) => <textarea {...fieldProps} rows={5} value={form.internalRemarks} onChange={(event) => updateField('internalRemarks', event.target.value)} placeholder="Add internal follow-up or coordination notes…" />}
-                </FormField>
-              </div>
-            </Panel>
           </div>
 
-          <aside className="form-layout__aside">
-            <Panel className="form-help-card form-progress-card">
-              <span aria-hidden="true"><ClipboardCheck size={24} /></span>
-              <p className="eyebrow">Record checklist</p>
-              <h2>Complete the request</h2>
-              <ol>
-                <li className={form.initiatedBy && form.departmentId ? 'complete' : ''}><span>1</span> Link the initiator and department</li>
-                <li className={form.issueTypes.length > 0 && form.itemTypeId ? 'complete' : ''}><span>2</span> Classify the request</li>
-                <li className={form.description.trim().length >= 10 ? 'complete' : ''}><span>3</span> Describe the issue clearly</li>
-                <li className={form.assignedTo ? 'complete' : ''}><span>4</span> Route an owner when ready</li>
-              </ol>
-            </Panel>
-            <Panel className="form-help-card">
-              <span aria-hidden="true"><ShieldCheck size={23} /></span>
-              <h2>Good records help</h2>
-              <p>Use a specific description, select every applicable issue type, and keep resolution notes current as work progresses.</p>
-            </Panel>
-            <Panel className="form-help-card">
-              <span aria-hidden="true"><FileText size={23} /></span>
-              <h2>Need the full record?</h2>
-              <p>Open a support log to review its complete history and assignment timeline.</p>
-              <Link className="text-link" to="/support-logs">Browse support logs</Link>
-            </Panel>
-          </aside>
         </div>
 
         <div className="form-actions">

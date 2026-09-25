@@ -26,9 +26,12 @@ export default function App() {
 
         <Route element={<RequireAuth />}>
           <Route element={<AppShell />}>
+            {/* Main content */}
             <Route element={<RequireAdmin />}>
               <Route index element={<DashboardPage />} />
             </Route>
+
+
             <Route path="support-logs" element={<SupportLogsPage />} />
             <Route path="support-logs/new" element={<SupportLogFormPage />} />
             <Route path="support-logs/:id" element={<SupportLogDetailPage />} />
