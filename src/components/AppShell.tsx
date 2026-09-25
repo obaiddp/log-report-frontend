@@ -1,49 +1,82 @@
 import {
   BarChart3,
-  Boxes,
-  ClipboardCheck,
+  Building2,
+  ClipboardList,
   FilePlus2,
   LayoutDashboard,
+  ListChecks,
+  LogOut,
   Menu,
   Moon,
   Settings2,
+  ShieldCheck,
   Sun,
+  UsersRound,
   X,
+  type LucideIcon,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 import { cn } from '../lib/format'
-import { IconButton } from './ui'
+import { getInitials } from '../lib/support'
+import { Button, IconButton } from './ui'
 
-const navigation = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/assets', label: 'Assets', icon: Boxes },
-  { to: '/inspections', label: 'Inspections', icon: ClipboardCheck },
-  { to: '/inspection-form', label: 'New inspection', icon: FilePlus2 },
-  { to: '/reports', label: 'Reports', icon: BarChart3 },
-  { to: '/resources', label: 'Resources', icon: Settings2 },
+interface NavigationItem {
+  to: string
+  label: string
+  icon: LucideIcon
+  end?: boolean
+  adminOnly?: boolean
+}
+
+const navigation: NavigationItem[] = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true, adminOnly: true },
+  { to: '/support-logs', label: 'Support Logs', icon: ClipboardList },
+  { to: '/support-logs/new', label: 'Create Log', icon: FilePlus2 },
+  { to: '/my-work', label: 'My Work', icon: ListChecks },
+  { to: '/reports', label: 'Reports', icon: BarChart3, adminOnly: true },
+  { to: '/admin/users', label: 'Users', icon: UsersRound, adminOnly: true },
+  { to: '/admin/departments', label: 'Departments', icon: Building2, adminOnly: true },
+  { to: '/admin/configuration', label: 'Configuration', icon: Settings2, adminOnly: true },
 ]
 
 const pageLabels: Record<string, string> = {
   '/': 'Dashboard',
-  '/assets': 'Asset register',
-  '/inspections': 'Inspections',
-  '/inspection-form': 'Asset inspection form',
+  '/support-logs': 'Support Logs',
+  '/support-logs/new': 'Create Support Log',
+  '/my-work': 'My Work',
   '/reports': 'Reports',
-  '/resources': 'Admin resources',
+  '/admin/users': 'User administration',
+  '/admin/departments': 'Department administration',
+  '/admin/configuration': 'Support configuration',
 }
 
 type Theme = 'light' | 'dark'
 
 function getInitialTheme(): Theme {
-  const stored = window.localStorage.getItem('asset-inspection-theme')
+  const stored = window.localStorage.getItem('support-desk-theme')
   if (stored === 'light' || stored === 'dark') return stored
-  return window.matchMedia('(prefers-color-scheme: light)').matches
-    ? 'light'
-    : 'dark'
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+}
+
+function roleLabel(role: string | null | undefined): string {
+  if (role === 'admin') return 'Administrator'
+  if (role === 'technical_resource') return 'Technical Resource'
+  return 'Support user'
+}
+
+function currentPageLabel(pathname: string): string {
+  if (pathname.startsWith('/support-logs/')) {
+    if (pathname.endsWith('/edit')) return 'Edit Support Log'
+    if (pathname.endsWith('/new')) return 'Create Support Log'
+    return 'Support Log detail'
+  }
+  return pageLabels[pathname] || 'Support workspace'
 }
 
 export default function AppShell() {
+  const { user, isAdmin, logout } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
   const location = useLocation()
@@ -51,11 +84,13 @@ export default function AppShell() {
   const menuButtonRef = useRef<HTMLButtonElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const previousPath = useRef(location.pathname)
+  const visibleNavigation = navigation.filter((item) => !item.adminOnly || isAdmin)
+  const initials = getInitials(user?.name)
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     document.documentElement.style.colorScheme = theme
-    window.localStorage.setItem('asset-inspection-theme', theme)
+    window.localStorage.setItem('support-desk-theme', theme)
   }, [theme])
 
   useEffect(() => {
@@ -106,16 +141,6 @@ export default function AppShell() {
     }
   }, [mobileOpen])
 
-  const currentLabel = location.pathname.startsWith('/assets/')
-    ? location.pathname.endsWith('/edit')
-      ? 'Edit asset'
-      : 'New asset'
-    : location.pathname.startsWith('/inspections/')
-      ? location.pathname.endsWith('/edit')
-        ? 'Edit inspection'
-        : 'New inspection'
-      : pageLabels[location.pathname] || 'Asset operations'
-
   return (
     <div className="app-layout">
       <a className="skip-link" href="#main-content">
@@ -125,11 +150,11 @@ export default function AppShell() {
       <aside className={cn('sidebar', mobileOpen && 'sidebar--open')} aria-label="Primary navigation">
         <div className="brand brand--sidebar">
           <span className="brand__mark" aria-hidden="true">
-            <ClipboardCheck size={25} strokeWidth={1.8} />
+            <ShieldCheck size={25} strokeWidth={1.8} />
           </span>
           <span>
-            <strong>AssetOps</strong>
-            <small>Inspection console</small>
+            <strong>Support Desk</strong>
+            <small>IT support log</small>
           </span>
           <IconButton
             ref={closeButtonRef}
@@ -143,7 +168,7 @@ export default function AppShell() {
 
         <nav className="sidebar__nav">
           <p className="sidebar__label">Workspace</p>
-          {navigation.map(({ to, label, icon: Icon, end }) => (
+          {visibleNavigation.slice(0, 4).map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
@@ -154,16 +179,41 @@ export default function AppShell() {
               <span>{label}</span>
             </NavLink>
           ))}
+          {isAdmin && (
+            <>
+              <p className="sidebar__label sidebar__label--spaced">Administration</p>
+              {visibleNavigation.slice(4).map(({ to, label, icon: Icon }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={({ isActive }) => cn('nav-link', isActive && 'nav-link--active')}
+                >
+                  <Icon size={20} aria-hidden="true" />
+                  <span>{label}</span>
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
 
         <div className="sidebar__footer">
           <div className="user-summary">
-            <span className="avatar" aria-hidden="true">LR</span>
+            <span className="avatar" aria-hidden="true">{initials}</span>
             <span>
-              <strong>Asset Report</strong>
-              <small>Local workspace</small>
+              <strong>{user?.name || 'Support user'}</strong>
+              <small>{roleLabel(user?.role)}</small>
             </span>
           </div>
+          <Button
+            className="logout-button"
+            variant="ghost"
+            size="small"
+            onClick={() => void logout()}
+            aria-label="Sign out of Support Desk"
+          >
+            <LogOut size={18} aria-hidden="true" />
+            Sign out
+          </Button>
         </div>
       </aside>
 
@@ -189,8 +239,8 @@ export default function AppShell() {
               <Menu size={22} aria-hidden="true" />
             </IconButton>
             <div>
-              <p>Asset operations</p>
-              <strong>{currentLabel}</strong>
+              <p>Support operations</p>
+              <strong>{currentPageLabel(location.pathname)}</strong>
             </div>
           </div>
           <div className="topbar__actions">
@@ -202,10 +252,10 @@ export default function AppShell() {
             </IconButton>
             <span className="topbar__divider" aria-hidden="true" />
             <div className="topbar__user">
-              <span className="avatar avatar--small" aria-hidden="true">LR</span>
+              <span className="avatar avatar--small" aria-hidden="true">{initials}</span>
               <span>
-                <strong>Asset Operations</strong>
-                <small>Local workspace</small>
+                <strong>{user?.name || 'Support user'}</strong>
+                <small>{roleLabel(user?.role)}</small>
               </span>
             </div>
           </div>

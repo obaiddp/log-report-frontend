@@ -17,7 +17,7 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
 } from 'react'
-import { cn, formatNumber, statusTone, titleCase } from '../lib/format'
+import { cn, formatNumber, priorityTone, statusTone, titleCase } from '../lib/format'
 import type { EntityId, FieldErrors } from '../types'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -135,6 +135,16 @@ export function StatusBadge({ value }: { value?: string | null }) {
   )
 }
 
+export function PriorityBadge({ value }: { value?: string | null }) {
+  const label = value ? titleCase(value) : 'Unknown'
+  return (
+    <span className={cn('priority-badge', `priority-badge--${priorityTone(value)}`)}>
+      <span className="priority-badge__dot" aria-hidden="true" />
+      {label}
+    </span>
+  )
+}
+
 export function LoadingState({ label = 'Loading data' }: { label?: string }) {
   return (
     <div className="state-panel" role="status" aria-live="polite">
@@ -214,7 +224,7 @@ interface FormFieldProps {
   hint?: string
   required?: boolean
   inputId?: string
-  children: (props: FieldRenderProps) => ReactNode
+  children: ReactNode | ((props: FieldRenderProps) => ReactNode)
   className?: string
 }
 
@@ -244,11 +254,13 @@ export function FormField({
         )}
         {required && <span className="sr-only"> (required)</span>}
       </label>
-      {children({
-        id,
-        'aria-invalid': error ? true : undefined,
-        'aria-describedby': describedBy,
-      })}
+      {typeof children === 'function'
+        ? children({
+            id,
+            'aria-invalid': error ? true : undefined,
+            'aria-describedby': describedBy,
+          })
+        : children}
       {hint && (
         <p className="form-field__hint" id={hintId}>
           {hint}
@@ -277,7 +289,7 @@ export const FormErrorSummary = forwardRef<
         <ul>
           {Object.entries(errors).map(([field, messages]) => (
             <li key={field}>
-              <a href={`#${field}`}>{titleCase(field)}</a>: {messages[0]}
+              <a href={`#${field.split('.')[0]}`}>{titleCase(field.split('.')[0])}</a>: {messages[0]}
             </li>
           ))}
         </ul>

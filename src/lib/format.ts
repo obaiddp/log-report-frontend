@@ -45,19 +45,34 @@ export function titleCase(value?: string | null): string {
 
 export function statusTone(value?: string | null): string {
   const normalized = (value || 'unknown').toLowerCase()
-  if (['active', 'available', 'completed', 'resolved', 'healthy', 'new purchase'].some((item) => normalized.includes(item))) {
+  if (['active', 'available', 'completed', 'resolved', 'closed', 'healthy', 'new purchase'].some((item) => normalized.includes(item))) {
     return 'success'
   }
-  if (['pending', 'assigned', 'in progress', 'in-house', 'maintenance'].some((item) => normalized.includes(item))) {
+  if (['pending', 'assigned', 'open', 'in progress', 'in-house', 'maintenance'].some((item) => normalized.includes(item))) {
     return 'warning'
   }
-  if (['repair', 'repaired', 'out-house', 'out of service'].some((item) => normalized.includes(item))) {
+  if (['repair', 'repaired', 'outdoor repair', 'out-house', 'out of service'].some((item) => normalized.includes(item))) {
     return 'info'
   }
-  if (['inactive', 'retired', 'disposed', 'cancelled', 'failed'].some((item) => normalized.includes(item))) {
+  if (['inactive', 'retired', 'disposed', 'cancelled', 'failed', 'critical'].some((item) => normalized.includes(item))) {
     return 'danger'
   }
   return 'neutral'
+}
+
+export function priorityTone(value?: string | null): string {
+  switch ((value || '').toLowerCase()) {
+    case 'critical':
+      return 'danger'
+    case 'high':
+      return 'warning'
+    case 'medium':
+      return 'info'
+    case 'low':
+      return 'success'
+    default:
+      return 'neutral'
+  }
 }
 
 export function todayIso(): string {
@@ -73,6 +88,12 @@ export function startOfWeekIso(): string {
   date.setDate(date.getDate() - distance)
   const offset = date.getTimezoneOffset()
   return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 10)
+}
+
+export function startOfMonthIso(): string {
+  const date = new Date()
+  const offset = date.getTimezoneOffset()
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 7) + '-01'
 }
 
 export function entityKey(id: EntityId): string {

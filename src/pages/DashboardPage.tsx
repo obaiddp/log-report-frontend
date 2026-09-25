@@ -1,12 +1,13 @@
 import {
-  Boxes,
-  CalendarCheck2,
-  ClipboardCheck,
+  Activity,
+  CalendarRange,
+  CheckCircle2,
   Clock3,
   FilePlus2,
-  PackageCheck,
+  ListTodo,
   RefreshCw,
-  Wrench,
+  TriangleAlert,
+  ArrowRight,
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -16,182 +17,208 @@ import {
   MetricCard,
   PageHeader,
   Panel,
+  PriorityBadge,
   SectionHeading,
+  StatusBadge,
+  EmptyState,
+  Skeleton,
 } from '../components/ui'
 import { get, getErrorMessage, shouldIgnoreRequest } from '../lib/api'
-import { formatDate, formatNumber, todayIso } from '../lib/format'
-import { reportMetrics } from '../lib/reportMetrics'
-import type { ReportSummary } from '../types'
+import { formatDate, formatNumber, startOfMonthIso, startOfWeekIso, todayIso } from '../lib/format'
+import { dashboardMetrics, departmentName, listData, referenceName, unwrapResource, userName } from '../lib/support'
+import type { Paginated, SupportDashboardSummary, SupportLog } from '../types'
 
-type Range = 'daily' | 'weekly'
+function summaryPayload(value: unknown): SupportDashboardSummary {
+  const resource = unwrapResource(value as SupportDashboardSummary | { data: SupportDashboardSummary })
+  return resource && typeof resource === 'object' ? resource : {}
+}
 
 export default function DashboardPage() {
-  const [range, setRange] = useState<Range>('daily')
-  const [date, setDate] = useState(todayIso())
-  const [summary, setSummary] = useState<ReportSummary>({})
+  const [dateFrom, setDateFrom] = useState(startOfMonthIso())
+  const [dateTo, setDateTo] = useState(todayIso())
+  const [appliedRange, setAppliedRange] = useState({ from: startOfMonthIso(), to: todayIso() })
+  const [summary, setSummary] = useState<SupportDashboardSummary>({})
+  const [recentLogs, setRecentLogs] = useState<SupportLog[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
 
-  const loadReport = useCallback(async (signal?: AbortSignal) => {
+  const dateError = dateFrom && dateTo && dateFrom > dateTo
+    ? 'The start date must be on or before the end date.'
+    : ''
+
+  const loadDashboard = useCallback(async (signal?: AbortSignal) => {
+    if (dateError) {
+      setError('Choose a valid date range before loading the dashboard.')
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError('')
-    setSummary({})
-    try {
-      const data = await get<ReportSummary>('/v1/reports/summary', {
-        params: range === 'daily' ? { range, date } : { range },
-        signal,
-      })
-      setSummary(data)
-    } catch (requestError) {
-      if (!shouldIgnoreRequest(requestError)) setError(getErrorMessage(requestError))
-    } finally {
-      if (!signal?.aborted) setLoading(false)
+    const params = {
+      date_from: appliedRange.from || undefined,
+      date_to: appliedRange.to || undefined,
     }
-  }, [date, range])
+    const [summaryResult, logsResult] = await Promise.allSettled([
+      get<unknown>('/v1/dashboard/summary', { params, signal }),
+      get<Paginated<SupportLog>>('/v1/support-logs', {
+        params: {
+          ...params,
+          per_page: 8,
+          page: 1,
+          sort_by: 'updated_at',
+          sort_direction: 'desc',
+        },
+        signal,
+      }),
+    ])
+    if (signal?.aborted) return
+    if (summaryResult.status === 'fulfilled') setSummary(summaryPayload(summaryResult.value))
+    else setError(getErrorMessage(summaryResult.reason))
+    if (logsResult.status === 'fulfilled') {
+      const response = logsResult.value
+      setRecentLogs(listData(response))
+      // The dashboard intentionally renders a compact workload list.
+    }
+    setLoading(false)
+  }, [appliedRange.from, appliedRange.to, dateError])
 
   useEffect(() => {
     const controller = new AbortController()
-    void loadReport(controller.signal)
+    void loadDashboard(controller.signal).catch((requestError: unknown) => {
+      if (!shouldIgnoreRequest(requestError) && !controller.signal.aborted) {
+        setError(getErrorMessage(requestError))
+        setLoading(false)
+      }
+    })
     return () => controller.abort()
-  }, [loadReport])
+  }, [loadDashboard, reloadKey])
 
-  const metrics = reportMetrics(summary)
+  const applyRange = () => {
+    if (!dateError) setAppliedRange({ from: dateFrom, to: dateTo })
+  }
+
+  const applyPreset = (from: string) => {
+    const to = todayIso()
+    setDateFrom(from)
+    setDateTo(to)
+    setAppliedRange({ from, to })
+  }
+
+  const metrics = dashboardMetrics(summary)
+  const activeLogs = recentLogs.filter((log) => !['resolved', 'closed', 'cancelled'].includes(String(log.status)))
 
   return (
     <div className="page-stack">
       <PageHeader
         eyebrow="Operations overview"
-        title="Asset health dashboard"
-        description="Monitor the asset register, inspection workload, and department capacity."
+        title="Support desk dashboard"
+        description="A clear view of incoming work, active assignments, and resolution progress."
         actions={
-          <Link className="button button--primary button--default" to="/inspection-form">
+          <Link className="button button--primary button--default" to="/support-logs/new">
             <FilePlus2 size={18} aria-hidden="true" />
-            New inspection
+            Create support log
           </Link>
         }
       />
 
-      <Panel className="dashboard-controls">
-        <div>
-          <p className="control-label">Reporting period</p>
-          <div className="segmented-control" role="group" aria-label="Dashboard reporting period">
-            <button
-              type="button"
-              className={range === 'daily' ? 'active' : ''}
-              aria-pressed={range === 'daily'}
-              onClick={() => setRange('daily')}
-            >
-              Daily
-            </button>
-            <button
-              type="button"
-              className={range === 'weekly' ? 'active' : ''}
-              aria-pressed={range === 'weekly'}
-              onClick={() => setRange('weekly')}
-            >
-              Weekly
-            </button>
+      <Panel className="dashboard-controls dashboard-controls--wrap">
+        <div className="control-field">
+          <label htmlFor="dashboard-from">From</label>
+          <div className="input-with-icon">
+            <CalendarRange size={18} aria-hidden="true" />
+            <input id="dashboard-from" type="date" max={dateTo || todayIso()} value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />
           </div>
         </div>
-        {range === 'daily' && (
-          <div className="control-field">
-            <label htmlFor="dashboard-date">Report date</label>
-            <input
-              id="dashboard-date"
-              type="date"
-              value={date}
-              max={todayIso()}
-              onChange={(event) => setDate(event.target.value)}
-            />
+        <div className="control-field">
+          <label htmlFor="dashboard-to">To</label>
+          <div className="input-with-icon">
+            <CalendarRange size={18} aria-hidden="true" />
+            <input id="dashboard-to" type="date" min={dateFrom || undefined} max={todayIso()} value={dateTo} onChange={(event) => setDateTo(event.target.value)} />
           </div>
-        )}
+        </div>
+        <div className="dashboard-controls__presets" aria-label="Quick date ranges">
+          <Button variant="ghost" size="small" onClick={() => applyPreset(todayIso())} disabled={loading}>Today</Button>
+          <Button variant="ghost" size="small" onClick={() => applyPreset(startOfWeekIso())} disabled={loading}>This week</Button>
+          <Button variant="ghost" size="small" onClick={() => applyPreset(startOfMonthIso())} disabled={loading}>This month</Button>
+        </div>
+        <div className="dashboard-controls__actions">
+          <Button variant="secondary" onClick={applyRange} disabled={loading || Boolean(dateError)}>Apply range</Button>
+          <Button variant="ghost" size="small" onClick={() => setReloadKey((value) => value + 1)} disabled={loading}>
+            <RefreshCw size={17} aria-hidden="true" />
+            Refresh
+          </Button>
+        </div>
+        {dateError && <p className="control-error" role="alert">{dateError}</p>}
         <div className="dashboard-controls__status">
           <span className={loading ? 'status-dot status-dot--loading' : 'status-dot'} aria-hidden="true" />
-          <span>{loading ? 'Refreshing' : `Updated ${formatDate(date)}`}</span>
+          <span>{loading ? 'Refreshing' : `${formatDate(appliedRange.from)} – ${formatDate(appliedRange.to)}`}</span>
         </div>
-        <Button variant="ghost" size="small" onClick={() => void loadReport()} disabled={loading}>
-          <RefreshCw size={17} aria-hidden="true" />
-          Refresh
-        </Button>
       </Panel>
 
-      <section aria-labelledby="metrics-title">
-        <SectionHeading
-          title="Key metrics"
-          description={range === 'daily' ? `Activity for ${formatDate(date)}` : 'Current week activity'}
-        />
-        <div className="metric-grid" id="metrics-title">
-          <MetricCard
-            label="Total assets"
-            value={loading || error ? '—' : formatNumber(metrics.totalAssets)}
-            hint="Registered records"
-            icon={<Boxes size={22} />}
-            tone="blue"
-          />
-          <MetricCard
-            label="Inspections"
-            value={loading || error ? '—' : formatNumber(metrics.totalInspections)}
-            hint={range === 'daily' ? 'Recorded today' : 'Recorded this week'}
-            icon={<ClipboardCheck size={22} />}
-            tone="violet"
-          />
-          <MetricCard
-            label="Repair activity"
-            value={loading || error ? '—' : formatNumber(metrics.repairs)}
-            hint="Repair-category records"
-            icon={<Wrench size={22} />}
-            tone="amber"
-          />
-          <MetricCard
-            label="Pending work"
-            value={loading || error ? '—' : formatNumber(metrics.pending)}
-            hint="Awaiting resolution"
-            icon={<Clock3 size={22} />}
-            tone="green"
-          />
+      <section aria-labelledby="dashboard-metrics-title">
+        <SectionHeading title="Key metrics" description="Totals reflect the selected date range." />
+        <div className="metric-grid" id="dashboard-metrics-title">
+          <MetricCard label="Total logs" value={loading || error ? '—' : formatNumber(metrics.total)} hint="Support requests in range" icon={<Activity size={22} />} tone="blue" />
+          <MetricCard label="Open work" value={loading || error ? '—' : formatNumber(metrics.open)} hint="Awaiting progress" icon={<ListTodo size={22} />} tone="amber" />
+          <MetricCard label="In progress" value={loading || error ? '—' : formatNumber(metrics.inProgress)} hint="Currently being worked" icon={<Clock3 size={22} />} tone="violet" />
+          <MetricCard label="Indoor repair" value={loading || error ? '—' : formatNumber(metrics.indoorRepair)} hint="In-house repair work" icon={<TriangleAlert size={22} />} tone="amber" />
+          <MetricCard label="Outdoor repair" value={loading || error ? '—' : formatNumber(metrics.outdoorRepair)} hint="External repair work" icon={<TriangleAlert size={22} />} tone="violet" />
+          <MetricCard label="Resolved" value={loading || error ? '—' : formatNumber(metrics.resolved)} hint="Resolved requests" icon={<CheckCircle2 size={22} />} tone="green" />
+          <MetricCard label="Closed" value={loading || error ? '—' : formatNumber(metrics.closed)} hint="Closed records" icon={<CheckCircle2 size={22} />} tone="blue" />
+          <MetricCard label="Overdue" value={loading || error ? '—' : formatNumber(metrics.overdue)} hint="Active beyond 7 days" icon={<TriangleAlert size={22} />} tone="amber" />
+          <MetricCard label="Created today" value={loading || error ? '—' : formatNumber(metrics.createdToday)} hint="New records today" icon={<CalendarRange size={22} />} tone="blue" />
+          <MetricCard label="Created this week" value={loading || error ? '—' : formatNumber(metrics.createdThisWeek)} hint="New records this week" icon={<ListTodo size={22} />} tone="violet" />
+          <MetricCard label="Avg resolution" value={loading || error ? '—' : metrics.averageResolutionHours === null ? '—' : `${formatNumber(metrics.averageResolutionHours)} h`} hint="Created to resolved" icon={<Clock3 size={22} />} tone="green" />
         </div>
       </section>
 
       <section aria-labelledby="dashboard-visuals-title">
-        <SectionHeading
-          title="Operational analytics"
-          description="Use the chart legends, tooltips, or data tables to review exact values."
-        />
+        <SectionHeading title="Support analytics" description="Use the chart legends, tooltips, or data tables to review exact values." />
         <div id="dashboard-visuals-title">
-          <ReportVisuals
-            summary={summary}
-            loading={loading}
-            error={error}
-            onRetry={() => void loadReport()}
-          />
+          <ReportVisuals summary={summary} loading={loading} error={error} onRetry={() => void loadDashboard()} />
         </div>
       </section>
 
-      <section aria-labelledby="quick-actions-title">
-        <Panel className="quick-actions">
-          <div className="quick-actions__intro">
-            <span className="quick-actions__icon" aria-hidden="true"><PackageCheck size={24} /></span>
-            <div>
-              <p className="eyebrow">Common workflows</p>
-              <h2 id="quick-actions-title">Keep the register current</h2>
-            </div>
-          </div>
-          <div className="quick-actions__links">
-            <Link to="/assets/new">
-              <CalendarCheck2 size={19} aria-hidden="true" />
-              <span><strong>Register an asset</strong><small>Add ownership and specifications</small></span>
-            </Link>
-            <Link to="/inspection-form">
-              <ClipboardCheck size={19} aria-hidden="true" />
-              <span><strong>Complete an inspection</strong><small>Record service and assignment</small></span>
-            </Link>
-            <Link to="/reports">
-              <RefreshCw size={19} aria-hidden="true" />
-              <span><strong>Open detailed reports</strong><small>Filter, review, and export</small></span>
-            </Link>
-          </div>
-        </Panel>
+      <section aria-labelledby="dashboard-workload-title">
+        <SectionHeading title="Recent active work" description="The latest requests that still need attention." action={<Link className="text-link" to="/support-logs">View all logs</Link>} />
+        <div id="dashboard-workload-title">
+          {loading ? (
+            <Skeleton count={4} />
+          ) : recentLogs.length === 0 ? (
+            <EmptyState title="No support logs yet" message="Create the first support request to start tracking work." action={<Link className="button button--primary button--default" to="/support-logs/new">Create support log</Link>} />
+          ) : (
+            <Panel className="table-card dashboard-workload">
+              <div className="table-scroll">
+                <table className="data-table">
+                  <caption className="sr-only">Recent active support logs</caption>
+                  <thead><tr><th scope="col">Ticket</th><th scope="col">Department</th><th scope="col">Priority</th><th scope="col">Status</th><th scope="col">Assigned resource</th><th scope="col"><span className="sr-only">Open</span></th></tr></thead>
+                  <tbody>
+                    {(activeLogs.length > 0 ? activeLogs : recentLogs).map((log) => (
+                      <tr key={log.id}>
+                        <td><div className="entity-cell"><span className="entity-cell__icon"><ListTodo size={19} aria-hidden="true" /></span><span><strong>{log.ticket_number}</strong><small>{formatDate(log.issue_date)}</small></span></div></td>
+                        <td>{departmentName(log.department)}</td>
+                        <td><PriorityBadge value={log.priority} /></td>
+                        <td><StatusBadge value={log.status} /></td>
+                        <td>{referenceName(log.assigned_resource, '') || userName(log.assigned_to)}</td>
+                        <td><Link className="icon-button" to={`/support-logs/${log.id}`} aria-label={`Open ${log.ticket_number}`} title="Open support log"><ArrowRight size={18} aria-hidden="true" /></Link></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Panel>
+          )}
+        </div>
       </section>
+
+      {metrics.critical > 0 && (
+        <div className="notice-banner" role="status">
+          <TriangleAlert size={20} aria-hidden="true" />
+          <div><strong>Critical work needs attention</strong><p>{formatNumber(metrics.critical)} critical-priority logs are included in this range.</p></div>
+          <Link className="button button--secondary button--small" to="/support-logs?priority=critical">Review critical logs</Link>
+        </div>
+      )}
     </div>
   )
 }

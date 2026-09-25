@@ -1,208 +1,103 @@
 import {
-  Boxes,
   CalendarRange,
-  ClipboardCheck,
-  Clock3,
   Download,
   FileSpreadsheet,
   RefreshCw,
-  Wrench,
+  Search,
+  X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ReportVisuals } from '../components/report/ReportVisuals'
+import { useSupportOptions } from '../hooks/useSupportOptions'
 import { useToast } from '../hooks/useToast'
-import {
-  Button,
-  FormField,
-  MetricCard,
-  PageHeader,
-  Panel,
-  SectionHeading,
-} from '../components/ui'
+import { ReportVisuals } from '../components/report/ReportVisuals'
+import { Button, FormField, PageHeader, Panel, SectionHeading } from '../components/ui'
 import { downloadCsv, get, getErrorMessage, shouldIgnoreRequest } from '../lib/api'
-import { formatDate, formatNumber, startOfWeekIso, todayIso } from '../lib/format'
-import { reportMetrics } from '../lib/reportMetrics'
+import { supportPriorityOptions, supportStatusOptions } from '../lib/constants'
+import { startOfMonthIso, todayIso } from '../lib/format'
+import { cleanQuery } from '../lib/support'
 import type { ReportSummary } from '../types'
-
-type ReportRange = 'daily' | 'weekly' | 'custom'
 
 function filenameFromDisposition(disposition?: string): string {
   const encoded = disposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1]
   const basic = disposition?.match(/filename="?([^";]+)"?/i)?.[1]
   const filename = encoded ? decodeURIComponent(encoded) : basic
-  return filename || `asset-inspection-report-${todayIso()}.csv`
+  return filename || `support-log-report-${todayIso()}.csv`
 }
 
 export default function ReportsPage() {
   const { notify } = useToast()
-  const [range, setRange] = useState<ReportRange>('daily')
-  const [date, setDate] = useState(todayIso())
-  const [from, setFrom] = useState(startOfWeekIso())
-  const [to, setTo] = useState(todayIso())
+  const options = useSupportOptions()
+  const [dateFrom, setDateFrom] = useState(startOfMonthIso())
+  const [dateTo, setDateTo] = useState(todayIso())
+  const [departmentId, setDepartmentId] = useState('')
+  const [issueTypeId, setIssueTypeId] = useState('')
+  const [itemTypeId, setItemTypeId] = useState('')
+  const [status, setStatus] = useState('')
+  const [priority, setPriority] = useState('')
+  const [assignedTo, setAssignedTo] = useState('')
+  const [initiatedBy, setInitiatedBy] = useState('')
+  const [ticketNumber, setTicketNumber] = useState('')
+  const [search, setSearch] = useState('')
+  const [reloadKey, setReloadKey] = useState(0)
   const [summary, setSummary] = useState<ReportSummary>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [exporting, setExporting] = useState(false)
-  const [reloadKey, setReloadKey] = useState(0)
 
-  const params = useMemo(() => {
-    if (range === 'daily') return { range, date }
-    if (range === 'weekly') return { range }
-    return { date_from: from, date_to: to }
-  }, [date, from, range, to])
+  const dateError = dateFrom && dateTo && dateFrom > dateTo ? 'The start date must be on or before the end date.' : ''
+  const params = useMemo(() => cleanQuery({
+    date_from: dateFrom,
+    date_to: dateTo,
+    department_id: departmentId,
+    issue_type_id: issueTypeId,
+    item_type_id: itemTypeId,
+    status,
+    priority,
+    assigned_to: assignedTo,
+    initiated_by: initiatedBy,
+    ticket_number: ticketNumber,
+    search: search || undefined,
+  }), [assignedTo, dateFrom, dateTo, departmentId, initiatedBy, issueTypeId, itemTypeId, priority, search, status, ticketNumber])
 
-  const dateError =
-    range === 'custom' && from && to && from > to
-      ? 'The start date must be on or before the end date.'
-      : ''
+  const loadReports = useCallback(async (signal?: AbortSignal) => {
+    if (dateError) { setError('Choose a valid date range before loading reports.'); setLoading(false); return }
+    setLoading(true); setError('')
+    const endpoints = [
+      get<unknown>('/v1/reports/by-department', { params, signal }),
+      get<unknown>('/v1/reports/by-resource', { params, signal }),
+      get<unknown>('/v1/reports/by-issue-type', { params, signal }),
+      get<unknown>('/v1/reports/by-status', { params, signal }),
+    ]
+    const results = await Promise.allSettled(endpoints)
+    if (signal?.aborted) return
+    const [departments, resources, issueTypes, statuses] = results
+    const nextSummary: ReportSummary = {}
+    if (departments.status === 'fulfilled') nextSummary.department_breakdown = departments.value
+    if (resources.status === 'fulfilled') nextSummary.resource_breakdown = resources.value
+    if (issueTypes.status === 'fulfilled') nextSummary.issue_type_breakdown = issueTypes.value
+    if (statuses.status === 'fulfilled') nextSummary.status_breakdown = statuses.value
+    setSummary(nextSummary)
+    const failure = results.find((result): result is PromiseRejectedResult => result.status === 'rejected')
+    if (failure) setError(getErrorMessage(failure.reason))
+    setLoading(false)
+  }, [dateError, params])
 
-  const loadReport = useCallback(async (signal?: AbortSignal) => {
-    setSummary({})
-    if (range === 'custom' && from && to && from > to) {
-      setError('Choose a valid custom date range before loading the report.')
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    setError('')
-    try {
-      const report = await get<ReportSummary>('/v1/reports/summary', { params, signal })
-      setSummary(report)
-    } catch (requestError) {
-      if (!shouldIgnoreRequest(requestError)) setError(getErrorMessage(requestError))
-    } finally {
-      if (!signal?.aborted) setLoading(false)
-    }
-  }, [from, params, range, to])
+  useEffect(() => { const controller = new AbortController(); void loadReports(controller.signal).catch((requestError: unknown) => { if (!shouldIgnoreRequest(requestError) && !controller.signal.aborted) { setError(getErrorMessage(requestError)); setLoading(false) } }); return () => controller.abort() }, [loadReports, reloadKey])
 
-  useEffect(() => {
-    const controller = new AbortController()
-    void loadReport(controller.signal)
-    return () => controller.abort()
-  }, [loadReport, reloadKey])
-
-  const handleExport = async () => {
+  const clearFilters = () => { setSearch(''); setDepartmentId(''); setIssueTypeId(''); setItemTypeId(''); setStatus(''); setPriority(''); setAssignedTo(''); setInitiatedBy(''); setTicketNumber(''); setDateFrom(startOfMonthIso()); setDateTo(todayIso()) }
+  const hasFilters = Boolean(search || departmentId || issueTypeId || itemTypeId || status || priority || assignedTo || initiatedBy || ticketNumber || dateFrom !== startOfMonthIso() || dateTo !== todayIso())
+  const exportCsv = async () => {
     if (dateError) return
     setExporting(true)
-    try {
-      const response = await downloadCsv(params)
-      const blobUrl = URL.createObjectURL(response.data)
-      const link = document.createElement('a')
-      link.href = blobUrl
-      link.download = filenameFromDisposition(response.headers['content-disposition'] as string | undefined)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      URL.revokeObjectURL(blobUrl)
-      notify('CSV report downloaded.')
-    } catch (requestError) {
-      notify(getErrorMessage(requestError), 'error')
-    } finally {
-      setExporting(false)
-    }
+    try { const response = await downloadCsv(params); const url = URL.createObjectURL(response.data); const link = document.createElement('a'); link.href = url; link.download = filenameFromDisposition(response.headers['content-disposition'] as string | undefined); document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url); notify('CSV report downloaded.') }
+    catch (requestError: unknown) { notify(getErrorMessage(requestError), 'error') }
+    finally { setExporting(false) }
   }
 
-  const metrics = reportMetrics(summary)
-  const periodLabel =
-    range === 'daily'
-      ? formatDate(date)
-      : range === 'weekly'
-        ? 'Current week'
-        : `${formatDate(from)} – ${formatDate(to)}`
-
-  return (
-    <div className="page-stack">
-      <PageHeader
-        eyebrow="Reporting"
-        title="Inspection reports"
-        description="Compare operational activity by day, week, or a custom date range."
-        actions={
-          <Button onClick={() => void handleExport()} loading={exporting} disabled={loading || Boolean(dateError)}>
-            <Download size={18} aria-hidden="true" />
-            Export CSV
-          </Button>
-        }
-      />
-
-      <Panel className="report-controls">
-        <div className="report-controls__top">
-          <div>
-            <p className="control-label">Report period</p>
-            <div className="segmented-control" role="group" aria-label="Report period">
-              {([
-                ['daily', 'Daily'],
-                ['weekly', 'Weekly'],
-                ['custom', 'Custom'],
-              ] as const).map(([value, label]) => (
-                <button
-                  type="button"
-                  className={range === value ? 'active' : ''}
-                  aria-pressed={range === value}
-                  key={value}
-                  onClick={() => setRange(value)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="report-controls__period">
-            <CalendarRange size={18} aria-hidden="true" />
-            <span><small>Active period</small><strong>{periodLabel}</strong></span>
-          </div>
-          <Button variant="ghost" size="small" onClick={() => setReloadKey((value) => value + 1)} disabled={loading}>
-            <RefreshCw size={17} aria-hidden="true" />
-            Refresh
-          </Button>
-        </div>
-
-        <div className="report-controls__dates">
-          {range === 'daily' && (
-            <FormField label="Report date" inputId="report-date" error={dateError}>
-              {(fieldProps) => <input {...fieldProps} type="date" max={todayIso()} value={date} onChange={(event) => setDate(event.target.value)} />}
-            </FormField>
-          )}
-          {range === 'custom' && (
-            <>
-              <FormField label="From date" required inputId="report-from">
-                {(fieldProps) => <input {...fieldProps} type="date" max={to || todayIso()} value={from} onChange={(event) => setFrom(event.target.value)} />}
-              </FormField>
-              <FormField label="To date" required error={dateError} inputId="report-to">
-                {(fieldProps) => <input {...fieldProps} type="date" min={from || undefined} max={todayIso()} value={to} onChange={(event) => setTo(event.target.value)} />}
-              </FormField>
-            </>
-          )}
-          {range === 'weekly' && (
-            <p className="report-controls__note">Weekly reports use the backend's current calendar week.</p>
-          )}
-        </div>
-      </Panel>
-
-      <section aria-labelledby="report-metrics-title">
-        <SectionHeading title="Report summary" description={`Metrics for ${periodLabel.toLowerCase()}`} />
-        <div className="metric-grid" id="report-metrics-title">
-          <MetricCard label="Total assets" value={loading || error ? '—' : formatNumber(metrics.totalAssets)} hint="Portfolio total" icon={<Boxes size={22} />} tone="blue" />
-          <MetricCard label="Inspections" value={loading || error ? '—' : formatNumber(metrics.totalInspections)} hint="Records in period" icon={<ClipboardCheck size={22} />} tone="violet" />
-          <MetricCard label="Repairs" value={loading || error ? '—' : formatNumber(metrics.repairs)} hint="Repair-category activity" icon={<Wrench size={22} />} tone="amber" />
-          <MetricCard label="Pending" value={loading || error ? '—' : formatNumber(metrics.pending)} hint="Awaiting resolution" icon={<Clock3 size={22} />} tone="green" />
-        </div>
-      </section>
-
-      <section aria-labelledby="report-visuals-title">
-        <SectionHeading title="Visual analysis" description="Each visual includes an exact-value data table alternative." />
-        <div id="report-visuals-title">
-          <ReportVisuals summary={summary} loading={loading} error={error} onRetry={() => void loadReport()} />
-        </div>
-      </section>
-
-      <Panel className="export-callout">
-        <span aria-hidden="true"><FileSpreadsheet size={25} /></span>
-        <div><h2>Need the underlying records?</h2><p>The CSV export uses the active report filters and date period.</p></div>
-        <Button variant="secondary" onClick={() => void handleExport()} loading={exporting} disabled={loading || Boolean(dateError)}>
-          <Download size={18} aria-hidden="true" />
-          Download CSV
-        </Button>
-      </Panel>
-    </div>
-  )
+  return <div className="page-stack">
+    <PageHeader eyebrow="Reporting" title="Support reports" description="Understand demand by department, assigned resource, issue type, item, and status." actions={<Button onClick={() => void exportCsv()} loading={exporting} disabled={loading || Boolean(dateError)}><Download size={18} aria-hidden="true" />Export CSV</Button>} />
+    <Panel className="report-controls"><div className="report-controls__top"><div><p className="control-label">Report filters</p><div className="report-filter-summary"><CalendarRange size={18} aria-hidden="true" /><span>{dateFrom || 'Any date'} – {dateTo || 'Any date'}</span></div></div>{hasFilters && <Button variant="ghost" size="small" onClick={clearFilters}><X size={17} aria-hidden="true" />Reset filters</Button>}<Button variant="ghost" size="small" onClick={() => setReloadKey((value) => value + 1)} disabled={loading}><RefreshCw size={17} aria-hidden="true" />Refresh</Button></div><div className="filter-grid report-filter-grid"><div className="filter-field filter-field--search"><label htmlFor="report-search">Search</label><div className="input-with-icon"><Search size={18} aria-hidden="true" /><input id="report-search" type="search" value={search} placeholder="Ticket, description, requester…" onChange={(event) => setSearch(event.target.value)} /></div></div><FormField label="From date" required error={dateError} inputId="report-from">{(fieldProps) => <input {...fieldProps} type="date" max={dateTo || todayIso()} value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} />}</FormField><FormField label="To date" required error={dateError} inputId="report-to">{(fieldProps) => <input {...fieldProps} type="date" min={dateFrom || undefined} max={todayIso()} value={dateTo} onChange={(event) => setDateTo(event.target.value)} />}</FormField><div className="filter-field"><label htmlFor="report-department">Department</label><select id="report-department" value={departmentId} onChange={(event) => setDepartmentId(event.target.value)}><option value="">All departments</option>{options.departments.map((department) => <option value={department.id} key={department.id}>{department.name}</option>)}</select></div><div className="filter-field"><label htmlFor="report-issue-type">Issue type</label><select id="report-issue-type" value={issueTypeId} onChange={(event) => setIssueTypeId(event.target.value)}><option value="">All issue types</option>{options.issueTypes.map((issueType) => <option value={issueType.id} key={issueType.id}>{issueType.name}</option>)}</select></div><div className="filter-field"><label htmlFor="report-item-type">Item type</label><select id="report-item-type" value={itemTypeId} onChange={(event) => setItemTypeId(event.target.value)}><option value="">All item types</option>{options.itemTypes.map((itemType) => <option value={itemType.id} key={itemType.id}>{itemType.name}</option>)}</select></div><div className="filter-field"><label htmlFor="report-status">Status</label><select id="report-status" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">All statuses</option>{supportStatusOptions.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></div><div className="filter-field"><label htmlFor="report-priority">Priority</label><select id="report-priority" value={priority} onChange={(event) => setPriority(event.target.value)}><option value="">All priorities</option>{supportPriorityOptions.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></div><div className="filter-field"><label htmlFor="report-resource">Assigned resource</label><select id="report-resource" value={assignedTo} onChange={(event) => setAssignedTo(event.target.value)}><option value="">All resources</option>{options.users.filter((candidate) => candidate.role === 'technical_resource' || candidate.role === 'admin').map((candidate) => <option value={candidate.id} key={candidate.id}>{candidate.name}</option>)}</select></div><div className="filter-field"><label htmlFor="report-initiator">Initiator name</label><input id="report-initiator" value={initiatedBy} placeholder="Search by requester name" onChange={(event) => setInitiatedBy(event.target.value)} /></div><div className="filter-field"><label htmlFor="report-ticket">Ticket number</label><input id="report-ticket" value={ticketNumber} placeholder="e.g. IT-000123" onChange={(event) => setTicketNumber(event.target.value)} /></div></div></Panel>
+    <section aria-labelledby="report-visuals-title"><SectionHeading title="Visual analysis" description="Each visual includes an exact-value data table alternative for keyboard-accessible review." /><div id="report-visuals-title"><ReportVisuals summary={summary} loading={loading} error={error} onRetry={() => void loadReports()} /></div></section>
+    <Panel className="export-callout"><span aria-hidden="true"><FileSpreadsheet size={25} /></span><div><h2>Need the underlying records?</h2><p>CSV export uses the same date and filter values shown above.</p></div><Button variant="secondary" onClick={() => void exportCsv()} loading={exporting} disabled={loading || Boolean(dateError)}><Download size={18} aria-hidden="true" />Download CSV</Button></Panel>
+  </div>
 }

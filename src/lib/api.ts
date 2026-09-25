@@ -1,17 +1,78 @@
-import axios, { type AxiosRequestConfig, type AxiosResponse } from 'axios'
+import axios, {
+  AxiosHeaders,
+  type AxiosRequestConfig,
+  type AxiosResponse,
+} from 'axios'
 import type { FieldErrors } from '../types'
 
 export const API_BASE_URL = (
   import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 ).replace(/\/$/, '')
 
+export const API_ROOT_URL = API_BASE_URL.replace(/\/api\/?$/, '')
+
+/**
+ * The API is accessed with Laravel Sanctum's SPA cookie session. No bearer
+ * token is stored by the frontend; Axios reads the XSRF cookie and sends the
+ * corresponding header for browser requests.
+ */
 export const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 20_000,
+  withCredentials: true,
+  withXSRFToken: true,
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
   headers: {
     Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
   },
 })
+
+function readCookie(name: string): string | undefined {
+  if (typeof document === 'undefined') return undefined
+  const prefix = `${encodeURIComponent(name)}=`
+  const cookie = document.cookie
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(prefix))
+  if (!cookie) return undefined
+  try {
+    return decodeURIComponent(cookie.slice(prefix.length))
+  } catch {
+    return cookie.slice(prefix.length)
+  }
+}
+
+type UnauthorizedHandler = () => void
+let unauthorizedHandler: UnauthorizedHandler | undefined
+
+export function setUnauthorizedHandler(handler?: UnauthorizedHandler): void {
+  unauthorizedHandler = handler
+}
+
+api.interceptors.request.use((config) => {
+  config.withCredentials = true
+  const token = readCookie('XSRF-TOKEN')
+  if (token) {
+    const headers = AxiosHeaders.from(config.headers)
+    headers.set('X-XSRF-TOKEN', token)
+    config.headers = headers
+  }
+  return config
+})
+
+api.interceptors.response.use(
+  (response) => response,
+  (error: unknown) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      unauthorizedHandler?.()
+    }
+    // 403 is intentionally not handled as an authentication failure. The
+    // page that made the request should explain the authorization boundary.
+    return Promise.reject(error)
+  },
+)
 
 export async function get<T>(
   url: string,
@@ -19,6 +80,11 @@ export async function get<T>(
 ): Promise<T> {
   const response = await api.get<T>(url, config)
   return response.data
+}
+
+/** Prime Laravel Sanctum's SPA session before sending a credentialed login. */
+export async function initializeCsrfCookie(): Promise<void> {
+  await api.get('/sanctum/csrf-cookie', { baseURL: API_ROOT_URL })
 }
 
 async function mutate<T>(
@@ -68,9 +134,10 @@ export function destroy<T>(
 }
 
 export async function downloadCsv(
-  params: Record<string, string | undefined>,
+  params: Record<string, string | number | undefined>,
+  url = '/v1/reports/export',
 ): Promise<AxiosResponse<Blob>> {
-  return api.get<Blob>('/v1/reports/export', {
+  return api.get<Blob>(url, {
     params,
     responseType: 'blob',
   })
@@ -94,6 +161,13 @@ export function getErrorMessage(error: unknown): string {
       }
       if (typeof data.error === 'string' && data.error.trim()) return data.error
     }
+
+    if (error.response.status === 403) {
+      return 'You do not have permission to perform this action.'
+    }
+    if (error.response.status === 422) {
+      return 'Please review the highlighted fields and try again.'
+    }
   }
 
   return error instanceof Error ? error.message : 'Something went wrong. Please try again.'
@@ -103,9 +177,9 @@ export function getFieldErrors(error: unknown): FieldErrors {
   if (!axios.isAxiosError(error)) return {}
 
   const data = error.response?.data as
-    | { errors?: unknown; message?: unknown }
+    | { errors?: unknown; message?: unknown; data?: { errors?: unknown } }
     | undefined
-  const errors = data?.errors
+  const errors = data?.errors ?? data?.data?.errors
 
   if (!errors || typeof errors !== 'object' || Array.isArray(errors)) return {}
 

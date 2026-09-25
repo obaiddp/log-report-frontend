@@ -2,7 +2,7 @@
   "name": "log-report-frontend",
   "private": true,
   "version": "0.0.0",
-  "description": "React frontend for the Log Report application.",
+  "description": "React frontend for the IT support log system.",
   "type": "module",
   "scripts": {
     "dev": "vite",
