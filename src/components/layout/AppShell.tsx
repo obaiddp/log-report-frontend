@@ -80,7 +80,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       item.to === "/"
         ? location.pathname === "/"
         : location.pathname.startsWith(item.to)
-    )?.label ?? "Support Desk";
+    )?.label ?? (location.pathname.startsWith("/profile") ? "Profile" : "Support Desk");
 
   return (
     <div className="min-h-screen bg-background">
