@@ -4,7 +4,7 @@ import ProtectedLayout from "@/components/ProtectedLayout";
 import { useAuth } from "@/context/AuthContext";
 
 import LoginPage from "./pages/LoginPage";
-import Dashboard from "./pages/Dashboard";
+import DashboardPage from "./pages/DashboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import SupportLogsPage from "./pages/SupportLogsPage";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -36,7 +36,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginRoute />} />
         <Route element={<ProtectedLayout />}>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<DashboardPage />} />
           <Route path="/support-logs" element={<SupportLogsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/admin/departments" element={<DepartmentsPage />} />
