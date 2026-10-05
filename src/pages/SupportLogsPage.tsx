@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download, Plus, Trash2 } from "lucide-react";
 
 import {
@@ -32,6 +32,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import SupportLogForm from "@/components/SupportLogForm";
+import { canCreateLogs, canDeleteLogs, canUpdateLogs, canViewAllLogs } from "@/lib/permissions";
+import { useAuth } from "@/context/AuthContext";
 
 const STATUS_LABELS: Record<SupportLogStatus, string> = {
   indoor_repairing: "Indoor Repairing",
@@ -59,6 +61,7 @@ function formatStatus(status: string): string {
 }
 
 export default function SupportLogsPage() {
+  const { user } = useAuth();
   const [supportLogs, setSupportLogs] = useState<SupportLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
   const [logsError, setLogsError] = useState("");
@@ -172,7 +175,18 @@ export default function SupportLogsPage() {
     setCreatedTicket(newLog.ticket_number);
   }
 
-  const filteredLogs = supportLogs.filter((log) => {
+  // UI scoping only — the API currently returns all logs to every
+  // authenticated user. The backend must enforce this server-side.
+  const visibleLogs = useMemo(() => {
+    if (canViewAllLogs(user) || !user) {
+      return supportLogs;
+    }
+    return supportLogs.filter(
+      (log) => log.created_by === user.id || log.assigned_to === user.id
+    );
+  }, [supportLogs, user]);
+
+  const filteredLogs = visibleLogs.filter((log) => {
     const searchText = search.toLowerCase();
 
     const matchesSearch =
@@ -202,9 +216,11 @@ export default function SupportLogsPage() {
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="size-4" /> Export CSV
           </Button>
-          <Button size="sm" onClick={() => setCreateOpen(true)}>
-            <Plus className="size-4" /> New log
-          </Button>
+          {canCreateLogs(user) && (
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4" /> New log
+            </Button>
+          )}
         </div>
       </div>
 
@@ -327,34 +343,47 @@ export default function SupportLogsPage() {
                         {log.issue_details || "-"}
                       </TableCell>
                       <TableCell>
-                        <Select
-                          value={log.status}
-                          onChange={(e) =>
-                            handleStatusChange(log.id, e.target.value as SupportLogStatus)
-                          }
-                          className={cn(
-                            "h-8 min-w-40 rounded-full text-xs font-medium",
-                            STATUS_SELECT_CLASSES[log.status]
-                          )}
-                        >
-                          {(Object.keys(STATUS_LABELS) as SupportLogStatus[]).map((s) => (
-                            <option key={s} value={s}>
-                              {STATUS_LABELS[s]}
-                            </option>
-                          ))}
-                        </Select>
+                        {canUpdateLogs(user) ? (
+                          <Select
+                            value={log.status}
+                            onChange={(e) =>
+                              handleStatusChange(log.id, e.target.value as SupportLogStatus)
+                            }
+                            className={cn(
+                              "h-8 min-w-40 rounded-full text-xs font-medium",
+                              STATUS_SELECT_CLASSES[log.status]
+                            )}
+                          >
+                            {(Object.keys(STATUS_LABELS) as SupportLogStatus[]).map((s) => (
+                              <option key={s} value={s}>
+                                {STATUS_LABELS[s]}
+                              </option>
+                            ))}
+                          </Select>
+                        ) : (
+                          <span
+                            className={cn(
+                              "inline-flex rounded-full px-2.5 py-1 text-xs font-medium",
+                              STATUS_SELECT_CLASSES[log.status]
+                            )}
+                          >
+                            {STATUS_LABELS[log.status]}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>{log.assigned_resource?.name ?? "-"}</TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-muted-foreground hover:text-destructive"
-                          onClick={() => setLogToDelete(log)}
-                          aria-label={`Delete ${log.ticket_number}`}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
+                        {canDeleteLogs(user) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-destructive"
+                            onClick={() => setLogToDelete(log)}
+                            aria-label={`Delete ${log.ticket_number}`}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
@@ -365,7 +394,7 @@ export default function SupportLogsPage() {
 
           {!logsLoading && (
             <p className="mt-3 text-xs text-muted-foreground">
-              Showing {filteredLogs.length} of {supportLogs.length} support logs
+              Showing {filteredLogs.length} of {visibleLogs.length} support logs
             </p>
           )}
         </CardContent>

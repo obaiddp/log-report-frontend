@@ -22,6 +22,8 @@ import {
   type SupportLog,
   type SupportLogStatus,
 } from "@/lib/api";
+import { canViewAllLogs } from "@/lib/permissions";
+import { useAuth } from "@/context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -52,6 +54,7 @@ function StatusPill({ status }: { status: SupportLogStatus }) {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const [logs, setLogs] = useState<SupportLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -75,28 +78,42 @@ export default function DashboardPage() {
     load();
   }, []);
 
+  const fullAccess = canViewAllLogs(user);
+
+  // Non-admin roles see only logs they created or that are assigned to them.
+  // NOTE: this is a UI scope filter only — the API currently returns all logs
+  // to any authenticated user. Server-side scoping is required for privacy.
+  const scopedLogs = useMemo(() => {
+    if (fullAccess || !user) {
+      return logs;
+    }
+    return logs.filter(
+      (log) => log.created_by === user.id || log.assigned_to === user.id
+    );
+  }, [logs, user, fullAccess]);
+
   const counts = useMemo(() => {
     const byStatus: Record<SupportLogStatus, number> = {
       indoor_repairing: 0,
       outdoor_repairing: 0,
       solved: 0,
     };
-    for (const log of logs) {
+    for (const log of scopedLogs) {
       byStatus[log.status] += 1;
     }
-    return { total: logs.length, ...byStatus };
-  }, [logs]);
+    return { total: scopedLogs.length, ...byStatus };
+  }, [scopedLogs]);
 
   const byDepartment = useMemo(() => {
     const map = new Map<string, number>();
-    for (const log of logs) {
+    for (const log of scopedLogs) {
       const name = log.department?.name ?? "Unknown";
       map.set(name, (map.get(name) ?? 0) + 1);
     }
     return Array.from(map, ([name, count]) => ({ name, count })).sort(
       (a, b) => b.count - a.count
     );
-  }, [logs]);
+  }, [scopedLogs]);
 
   const byStatus = useMemo(
     () =>
@@ -110,21 +127,21 @@ export default function DashboardPage() {
 
   const overTime = useMemo(() => {
     const map = new Map<string, number>();
-    for (const log of logs) {
+    for (const log of scopedLogs) {
       const day = log.issue_date.split("T")[0];
       map.set(day, (map.get(day) ?? 0) + 1);
     }
     return Array.from(map, ([date, count]) => ({ date, count })).sort((a, b) =>
       a.date.localeCompare(b.date)
     );
-  }, [logs]);
+  }, [scopedLogs]);
 
   const recentLogs = useMemo(
     () =>
-      [...logs]
+      [...scopedLogs]
         .sort((a, b) => b.created_at.localeCompare(a.created_at))
         .slice(0, 5),
-    [logs]
+    [scopedLogs]
   );
 
   if (loading) {
@@ -157,6 +174,17 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold text-foreground">
+          {fullAccess ? "Dashboard" : "My dashboard"}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          {fullAccess
+            ? "Organisation-wide support log activity."
+            : "Logs you created or that are assigned to you."}
+        </p>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card) => (
           <Card key={card.label}>
