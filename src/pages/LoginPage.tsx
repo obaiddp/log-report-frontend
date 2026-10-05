@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { useAuth } from "../context/AuthContext";
+import { TicketCheck } from "lucide-react";
+
+import { useAuth } from "@/context/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -29,39 +33,61 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="login-page">
-      <div className="login-card">
-        <h1>IT Support Log</h1>
-        <p className="login-subtitle">Sign in to your account</p>
+    <main className="flex min-h-screen items-center justify-center bg-background p-6">
+      <div className="w-full max-w-sm rounded-lg border border-border bg-card p-8">
+        <div className="mb-6 flex items-center gap-2.5">
+          <div className="flex size-9 items-center justify-center rounded-md bg-primary/15 text-primary-hover">
+            <TicketCheck className="size-5" />
+          </div>
+          <div>
+            <h1 className="text-base font-semibold text-foreground">Support Desk</h1>
+            <p className="text-xs text-muted-foreground">IT Support Log</p>
+          </div>
+        </div>
 
-        <form onSubmit={handleSubmit}>
-          <label>
-            Email
-            <input
+        <h2 className="text-lg font-semibold text-foreground">Sign in</h2>
+        <p className="mb-6 mt-1 text-sm text-muted-foreground">
+          Use your work account to continue.
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label htmlFor="email" className="text-sm font-medium text-foreground">
+              Email
+            </label>
+            <Input
+              id="email"
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
               required
             />
-          </label>
+          </div>
 
-          <label>
-            Password
-            <input
+          <div className="space-y-1.5">
+            <label htmlFor="password" className="text-sm font-medium text-foreground">
+              Password
+            </label>
+            <Input
+              id="password"
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Enter your password"
               required
             />
-          </label>
+          </div>
 
-          {error && <div className="error">{error}</div>}
+          {error && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {error}
+            </p>
+          )}
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Signing in..." : "Sign In"}
-          </button>
+          <Button type="submit" disabled={loading} className="w-full">
+            {loading ? "Signing in..." : "Sign in"}
+          </Button>
         </form>
       </div>
     </main>
