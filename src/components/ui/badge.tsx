@@ -12,9 +12,9 @@ const badgeVariants = cva(
         secondary: "border-transparent bg-secondary text-secondary-foreground",
         destructive: "border-transparent bg-destructive/10 text-destructive",
         outline: "text-foreground",
-        indoor: "border-transparent bg-status-indoor/15 text-status-indoor",
-        outdoor: "border-transparent bg-status-outdoor/15 text-status-outdoor",
-        solved: "border-transparent bg-status-solved/15 text-status-solved",
+        indoor: "border-transparent bg-status-indoor-bg text-status-indoor-text",
+        outdoor: "border-transparent bg-status-outdoor-bg text-status-outdoor-text",
+        solved: "border-transparent bg-status-solved-bg text-status-solved-text",
       },
     },
     defaultVariants: {
