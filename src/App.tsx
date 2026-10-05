@@ -1,6 +1,5 @@
 import { useAuth } from "./context/AuthContext";
 import LoginPage from "./pages/LoginPage";
-import ProfilePage from "./pages/ProfilePage";
 import Dashboard from "./pages/Dashboard";
 
 export default function App() {

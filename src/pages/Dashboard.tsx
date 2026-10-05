@@ -9,15 +9,13 @@ import {
   type SupportLogStatus,
 } from "../lib/api";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 
 import DepartmentManager from "../components/DepartmentManager";
 import ItemManager from "../components/ItemManager";
 import IssueManager from "../components/IssueManager";
 import LogReportManager from "../components/LogReportManager";
 
-
-type SupportLogStatus = "indoor_repairing" | "outdoor_repairing" | "solved";
 
 const STATUS_CONFIG: Record<
   SupportLogStatus,

@@ -87,16 +87,6 @@ export default function LogReportManager({onLogCreated, }: LogReportManagerProps
     loadData();
   }, []);
 
-  function handleIssueChange(
-    event: React.ChangeEvent<HTMLSelectElement>
-  ) {
-    const values = Array.from(event.target.selectedOptions).map(
-      (option) => Number(option.value)
-    );
-
-    setSelectedIssues(values);
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
