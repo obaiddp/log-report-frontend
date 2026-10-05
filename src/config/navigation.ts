@@ -2,7 +2,6 @@ import {
   ClipboardList,
   LayoutDashboard,
   Tags,
-  User,
   Building2,
   Package,
   type LucideIcon,
@@ -19,7 +18,6 @@ export type NavItem = {
 export const navItems: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/support-logs", label: "Support Logs", icon: ClipboardList },
-  { to: "/profile", label: "Profile", icon: User },
   {
     to: "/admin/departments",
     label: "Departments",
