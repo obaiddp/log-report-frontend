@@ -14,9 +14,14 @@ import {
   type SupportLog,
   type SupportLogStatus,
 } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+
+function today(): string {
+  return new Date().toISOString().split("T")[0];
+}
 
 function errorMessage(err: unknown): string {
   if (err instanceof ApiError) {
@@ -34,13 +39,14 @@ type SupportLogFormProps = {
 };
 
 export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFormProps) {
-  const [date, setDate] = useState("");
+  const { user: authUser } = useAuth();
+  const [date, setDate] = useState(today);
   const [initiator, setInitiator] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [selectedIssues, setSelectedIssues] = useState<number[]>([]);
   const [selectedItem, setSelectedItem] = useState("");
   const [issueDetails, setIssueDetails] = useState("");
-  const [status, setStatus] = useState<SupportLogStatus | "">("");
+  const [status, setStatus] = useState<SupportLogStatus | "">("indoor_repairing");
   const [selectedUser, setSelectedUser] = useState("");
 
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -51,6 +57,7 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function loadData() {
@@ -65,6 +72,12 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
         setItems(itemsResponse.data);
         setIssues(issuesResponse.data);
         setUsers(usersResponse.data);
+
+        // Prefill assigned resource with the logged-in user (still editable).
+        const viewer = usersResponse.data.find((u) => u.name === authUser?.name);
+        if (viewer) {
+          setSelectedUser(String(viewer.id));
+        }
       } catch (err) {
         setError(errorMessage(err));
       } finally {
@@ -73,18 +86,23 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
     }
 
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
-    if (!date) return setError("Please select a date.");
-    if (!initiator.trim()) return setError("Please enter who initiated the issue.");
-    if (!selectedDepartment) return setError("Please select a department.");
-    if (!selectedItem) return setError("Please select an item type.");
-    if (selectedIssues.length === 0) return setError("Please select at least one issue type.");
-    if (!status) return setError("Please select a status.");
+    const errors: Record<string, string> = {};
+    if (!date) errors.date = "Please select a date.";
+    if (!initiator.trim()) errors.initiator = "Please enter who initiated the issue.";
+    if (!selectedDepartment) errors.department = "Please select a department.";
+    if (!selectedItem) errors.item = "Please select an item type.";
+    if (selectedIssues.length === 0) errors.issues = "Select at least one issue type.";
+    if (!status) errors.status = "Please select a status.";
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
 
     try {
       setSubmitting(true);
@@ -95,12 +113,22 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
         department_id: Number(selectedDepartment),
         item_type_id: Number(selectedItem),
         issue_type_ids: selectedIssues,
-        status,
+        status: status as SupportLogStatus,
         issue_details: issueDetails.trim() || undefined,
         assigned_to: selectedUser ? Number(selectedUser) : undefined,
       });
 
       onLogCreated(response.data);
+
+      // Reset the form for the next entry.
+      setDate(today());
+      setInitiator("");
+      setSelectedDepartment("");
+      setSelectedIssues([]);
+      setSelectedItem("");
+      setIssueDetails("");
+      setStatus("indoor_repairing");
+      setFieldErrors({});
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -128,6 +156,9 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
             onChange={(e) => setDate(e.target.value)}
             disabled={submitting}
           />
+          {fieldErrors.date && (
+            <p className="text-xs text-destructive">{fieldErrors.date}</p>
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -142,6 +173,9 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
             placeholder="Enter person's name"
             disabled={submitting}
           />
+          {fieldErrors.initiator && (
+            <p className="text-xs text-destructive">{fieldErrors.initiator}</p>
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -163,6 +197,9 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
               </option>
             ))}
           </Select>
+          {fieldErrors.department && (
+            <p className="text-xs text-destructive">{fieldErrors.department}</p>
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -182,6 +219,9 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
               </option>
             ))}
           </Select>
+          {fieldErrors.item && (
+            <p className="text-xs text-destructive">{fieldErrors.item}</p>
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -199,6 +239,9 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
             <option value="outdoor_repairing">Outdoor Repairing</option>
             <option value="solved">Solved</option>
           </Select>
+          {fieldErrors.status && (
+            <p className="text-xs text-destructive">{fieldErrors.status}</p>
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -257,6 +300,9 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
             );
           })}
         </div>
+        {fieldErrors.issues && (
+          <p className="text-xs text-destructive">{fieldErrors.issues}</p>
+        )}
       </div>
 
       <div className="space-y-1.5">

@@ -218,7 +218,7 @@ export default function SupportLogsPage() {
           </Button>
           {canCreateLogs(user) && (
             <Button size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus className="size-4" /> New log
+              <Plus className="size-4" /> New Log
             </Button>
           )}
         </div>
