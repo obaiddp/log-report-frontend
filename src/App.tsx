@@ -1,6 +1,7 @@
 import { useAuth } from "./context/AuthContext";
 import LoginPage from "./pages/LoginPage";
 import ProfilePage from "./pages/ProfilePage";
+import Dashboard from "./pages/Dashboard";
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -13,5 +14,5 @@ export default function App() {
     );
   }
 
-  return user ? <ProfilePage /> : <LoginPage />;
+  return user ? <Dashboard /> : <LoginPage />;
 }

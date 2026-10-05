@@ -44,9 +44,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await getMe();
     const me = extractUser(response);
 
-    console.log("response:", response);
-    console.log("me:", me);
-
     if (!me) {
         throw new Error("Logged in, but could not load user profile.");
     }
@@ -67,6 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 function extractUser(response: any): User | null {
+
+    console.log("Extracting user from response:", response);
+
   return (
     response?.auth_user ??
     response?.data?.user ??
