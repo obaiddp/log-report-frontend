@@ -203,8 +203,8 @@ export default function SupportLogsPage() {
   });
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div id="support-logs-page" className="space-y-4">
+      <div id="support-logs-header" className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Support Logs</h2>
           <p className="text-sm text-muted-foreground">
@@ -213,11 +213,11 @@ export default function SupportLogsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport}>
+          <Button id="btn-export-csv" variant="outline" size="sm" onClick={handleExport}>
             <Download className="size-4" /> Export CSV
           </Button>
           {canCreateLogs(user) && (
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Button id="btn-new-log" size="sm" onClick={() => setCreateOpen(true)}>
               <Plus className="size-4" /> New Log
             </Button>
           )}
@@ -236,6 +236,7 @@ export default function SupportLogsPage() {
 
           <div className="flex flex-wrap items-center gap-2">
             <Input
+              id="filter-search"
               type="text"
               placeholder="Search ticket, initiator, issue..."
               value={search}
@@ -244,6 +245,7 @@ export default function SupportLogsPage() {
             />
 
             <Select
+              id="filter-status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="w-44"
@@ -255,6 +257,7 @@ export default function SupportLogsPage() {
             </Select>
 
             <Select
+              id="filter-department"
               value={departmentFilter}
               onChange={(e) => setDepartmentFilter(e.target.value)}
               className="w-44"
@@ -274,6 +277,7 @@ export default function SupportLogsPage() {
             </Select>
 
             <Button
+              id="btn-clear-filters"
               type="button"
               variant="ghost"
               size="sm"
@@ -302,7 +306,8 @@ export default function SupportLogsPage() {
               ))}
             </div>
           ) : (
-            <Table>
+            <Table id="support-logs-table">
+              <caption className="sr-only">Support logs</caption>
               <TableHeader>
                 <TableRow>
                   <TableHead>Ticket</TableHead>
@@ -326,7 +331,7 @@ export default function SupportLogsPage() {
                   </TableRow>
                 ) : (
                   filteredLogs.map((log) => (
-                    <TableRow key={log.id}>
+                    <TableRow key={log.id} id={`log-row-${log.id}`}>
                       <TableCell className="font-medium tabular-nums">
                         {log.ticket_number}
                       </TableCell>
@@ -345,6 +350,7 @@ export default function SupportLogsPage() {
                       <TableCell>
                         {canUpdateLogs(user) ? (
                           <Select
+                            id={`status-select-${log.id}`}
                             value={log.status}
                             onChange={(e) =>
                               handleStatusChange(log.id, e.target.value as SupportLogStatus)
@@ -375,6 +381,7 @@ export default function SupportLogsPage() {
                       <TableCell className="text-right">
                         {canDeleteLogs(user) && (
                           <Button
+                            id={`btn-delete-${log.id}`}
                             variant="ghost"
                             size="icon"
                             className="text-muted-foreground hover:text-destructive"
@@ -401,7 +408,7 @@ export default function SupportLogsPage() {
       </Card>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent id="dialog-create-log" className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>New support log</DialogTitle>
             <DialogDescription>
@@ -416,7 +423,7 @@ export default function SupportLogsPage() {
       </Dialog>
 
       <Dialog open={logToDelete !== null} onOpenChange={(open) => !open && setLogToDelete(null)}>
-        <DialogContent>
+        <DialogContent id="dialog-delete-log">
           <DialogHeader>
             <DialogTitle>Delete support log</DialogTitle>
             <DialogDescription>

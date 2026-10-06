@@ -19,7 +19,7 @@ export default function ProfilePage() {
   ];
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div id="profile-page" className="max-w-3xl space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-foreground">My Profile</h2>
         <p className="text-sm text-muted-foreground">
@@ -31,6 +31,7 @@ export default function ProfilePage() {
         {items.map((item) => (
           <div
             key={item.label}
+            id={`profile-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
             className="rounded-lg border border-border bg-card p-4"
           >
             <p className="text-xs text-muted-foreground">{item.label}</p>

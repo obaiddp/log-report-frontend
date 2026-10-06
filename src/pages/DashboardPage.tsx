@@ -173,7 +173,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div id="dashboard-page" className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-foreground">
           {fullAccess ? "Dashboard" : "My dashboard"}
@@ -187,7 +187,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card) => (
-          <Card key={card.label}>
+          <Card key={card.label} id={`stat-${card.label.toLowerCase().replace(/\s+/g, "-")}`}>
             <CardContent className="p-5">
               <p className="text-xs font-medium text-muted-foreground">{card.label}</p>
               <p className={`mt-1 text-3xl font-semibold tabular-nums ${card.accent}`}>
@@ -204,7 +204,7 @@ export default function DashboardPage() {
             <CardTitle className="text-base">Logs by department</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
+            <div id="chart-department" className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byDepartment}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E3DA" vertical={false} />
@@ -223,7 +223,7 @@ export default function DashboardPage() {
             <CardTitle className="text-base">Logs by status</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
+            <div id="chart-status" className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -252,7 +252,7 @@ export default function DashboardPage() {
           <CardTitle className="text-base">Logs over time</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-64">
+          <div id="chart-over-time" className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={overTime}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E5E3DA" vertical={false} />
@@ -276,9 +276,9 @@ export default function DashboardPage() {
               No support logs yet.
             </p>
           ) : (
-            <ul className="divide-y divide-border">
+            <ul id="recent-logs" className="divide-y divide-border">
               {recentLogs.map((log) => (
-                <li key={log.id} className="flex items-center justify-between gap-3 py-3">
+                <li key={log.id} id={`recent-log-${log.id}`} className="flex items-center justify-between gap-3 py-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-foreground">
                       {log.ticket_number} · {log.initiated_by}

@@ -137,7 +137,7 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form id="form-create-log" onSubmit={handleSubmit} className="space-y-4">
       {error && (
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
@@ -281,6 +281,7 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
                 }`}
               >
                 <input
+                  id={`issue-checkbox-${issue.id}`}
                   type="checkbox"
                   className="size-3.5 accent-[#78A03F]"
                   value={issue.id}
@@ -321,10 +322,10 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
       </div>
 
       <div className="flex items-center justify-end gap-2 pt-2">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={submitting}>
+        <Button id="btn-cancel-create" type="button" variant="outline" onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
-        <Button type="submit" disabled={loading || submitting}>
+        <Button id="btn-create-log" type="submit" disabled={loading || submitting}>
           {submitting ? "Creating..." : "Create support log"}
         </Button>
       </div>

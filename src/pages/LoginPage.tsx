@@ -33,8 +33,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-6">
-      <div className="w-full max-w-sm rounded-lg border border-border bg-card p-8">
+    <main id="login-page" className="flex min-h-screen items-center justify-center bg-background p-6">
+      <div id="login-card" className="w-full max-w-sm rounded-lg border border-border bg-card p-8">
         <div className="mb-6 flex items-center gap-2.5">
           <div className="flex size-9 items-center justify-center rounded-md bg-primary/15 text-primary-hover">
             <TicketCheck className="size-5" />
@@ -85,7 +85,7 @@ export default function LoginPage() {
             </p>
           )}
 
-          <Button type="submit" disabled={loading} className="w-full">
+          <Button id="btn-login" type="submit" disabled={loading} className="w-full">
             {loading ? "Signing in..." : "Sign in"}
           </Button>
         </form>

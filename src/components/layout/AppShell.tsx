@@ -32,7 +32,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-0.5 px-3">
+      <nav id="main-nav" className="flex-1 space-y-0.5 px-3">
         {items.map((item) => {
           const active =
             item.to === "/"
@@ -42,6 +42,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
           return (
             <NavLink
               key={item.to}
+              id={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
               to={item.to}
               onClick={onNavigate}
               className={cn(
@@ -85,7 +86,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-border/60 bg-muted md:block">
+      <aside id="app-sidebar" className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-border/60 bg-muted md:block">
         <SidebarContent />
       </aside>
 
@@ -111,8 +112,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
       )}
 
       <div className="md:pl-64">
-        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-card px-4">
+        <header id="app-topbar" className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-card px-4">
           <button
+            id="btn-open-nav"
             type="button"
             className="rounded-md p-1.5 text-muted-foreground hover:bg-muted md:hidden"
             onClick={() => setMobileOpen(true)}
@@ -127,6 +129,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
+                  id="user-menu-trigger"
                   type="button"
                   className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted"
                 >
@@ -160,7 +163,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        <main className="p-4 md:p-6">{children}</main>
+        <main id="app-main" className="p-4 md:p-6">{children}</main>
       </div>
     </div>
   );

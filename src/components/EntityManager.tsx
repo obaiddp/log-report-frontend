@@ -121,7 +121,7 @@ export default function EntityManager<T extends { id: number; name: string }>({
   };
 
   return (
-    <Card>
+    <Card id={`entity-${title.toLowerCase().replace(/\s+/g, "-")}`}>
       <CardHeader>
         <CardTitle className="text-base">{title}</CardTitle>
         <p className="text-sm text-muted-foreground">{description}</p>
@@ -243,7 +243,7 @@ export default function EntityManager<T extends { id: number; name: string }>({
       </CardContent>
 
       <Dialog open={itemToDelete !== null} onOpenChange={(open) => !open && setItemToDelete(null)}>
-        <DialogContent>
+        <DialogContent id={`dialog-delete-${title.toLowerCase().replace(/\s+/g, "-")}`}>
           <DialogHeader>
             <DialogTitle>Delete {title.replace(/s$/, "").toLowerCase()}</DialogTitle>
             <DialogDescription>
