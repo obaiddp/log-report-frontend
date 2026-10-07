@@ -11,6 +11,7 @@ import NotFoundPage from "./pages/NotFoundPage";
 import DepartmentsPage from "./pages/admin/DepartmentsPage";
 import ItemsPage from "./pages/admin/ItemsPage";
 import IssuesPage from "./pages/admin/IssuesPage";
+import RolesPermissionsPage from "./pages/admin/RolesPermissionsPage";
 
 function LoginRoute() {
   const { user, loading } = useAuth();
@@ -36,12 +37,21 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginRoute />} />
         <Route element={<ProtectedLayout />}>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/support-logs" element={<SupportLogsPage />} />
+          
+
           <Route path="/profile" element={<ProfilePage />} />
+
+          <Route path="/" element={<DashboardPage />} />
+          
+          <Route path="/support-logs" element={<SupportLogsPage />} />
           <Route path="/admin/departments" element={<DepartmentsPage />} />
+          
           <Route path="/admin/items" element={<ItemsPage />} />
           <Route path="/admin/issues" element={<IssuesPage />} />
+          <Route path="/admin/roles" element={<RolesPermissionsPage />} />
+          {/* <Route path="/admin/users" element={<UsersPage />} /> */}
+          {/* <Route path="/admin/issues" element={<IssuesPage />} /> */}
+
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

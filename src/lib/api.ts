@@ -1,39 +1,3 @@
-// async function request<T>(
-//   endpoint: string,
-//   options: RequestInit = {}
-// ): Promise<T> {
-//   const headers = new Headers(options.headers);
-
-//   headers.set("Accept", "application/json");
-
-//   if (options.body) {
-//     headers.set("Content-Type", "application/json");
-//   }
-
-//   const xsrfToken = getXsrfToken();
-
-//   if (xsrfToken) {
-//     headers.set("X-XSRF-TOKEN", xsrfToken);
-//   }
-
-//   console.log("Requesting:", `${API_URL}${endpoint}`, options);
-//   const response = await fetch(`${API_URL}${endpoint}`, {
-//     ...options,
-//     credentials: "include",
-//     headers,
-//   });
-
-//   const data = await response.json();
-
-//   if (!response.ok) {
-//     throw new Error(data.message || "Something went wrong");
-//   }
-
-//   return data;
-// }
-
-// ====================================================
-
 const API_URL = "http://127.0.0.1:8000";
 
 function getXsrfToken(): string | null {
@@ -106,6 +70,8 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 // ====================================================
 
+// ---------- Auth ----------
+
 export async function login(email: string, password: string) {
   await getCsrfCookie();
 
@@ -128,29 +94,75 @@ export async function logout() {
   });
 }
 
-// ================================== New
 
-// export type User = {
-// Schema::create('users', function (Blueprint $table) {
-//             $table->id();
+// ---------- Role ----------
+export type Role = {
+  id: number;
+  name: string;
+  created_at?: string;
+  updated_at?: string;
+};
 
-//             $table->string('name');
-//             $table->string('email')->unique();
-//             $table->timestamp('email_verified_at')->nullable();
-//             $table->string('password');
+export function getRoles() {
+  return request<{ status: string; data: Role[] }>("/api/roles");
+}
 
-//             $table->foreignId('role_id')->constrained()->restrictOnDelete();
+// ---------- Permission ----------
+export type Permission = {
+  id: number;
+  name: string;
+  created_at?: string;
+  updated_at?: string;
+  pivot?: {
+    role_id: number;
+    permission_id: number;
+    created_at?: string;
+    updated_at?: string;
+  };
+};
 
-//             $table->string('designation')->nullable();
+export type RolePermissionsResponse = {
+  status: string;
+  data: Permission[];
+};
 
-//             $table->timestamps();
-//         });  
-//     }
+export type UpdateRolePermissionsResponse = {
+  status: string;
+  message: string;
+  data: {
+    role: Role;
+    permission: Permission[]; // matches backend (singular)
+  };
+};
 
+export function getPermissions() {
+  return request<{ status: string; data: Permission[] }>("/api/permissions");
+}
+
+// Get permissions currently assigned to a role
+export function getRolePermissions(roleId: number) {
+  return request<RolePermissionsResponse>(`/api/roles/${roleId}/permissions`);
+}
+
+// Bulk update / sync permissions for a role
+export function updateRolePermissions(roleId: number, permissionIds: number[]) {
+  return request<UpdateRolePermissionsResponse>(`/api/roles/${roleId}/permissions`, {
+    method: "PUT",
+    body: JSON.stringify({
+      permission_ids: permissionIds,
+    }),
+  });
+}
 
 // ---------- User ----------
-
-export type User = { id: number; name: string; email: string; role_id: number; designation: string | null; };
+export type User = { 
+  id: number; 
+  name: string; 
+  email: string; 
+  role_id: number;
+  role?: Role; 
+  designation: string | null; 
+};
 
 export function getUsers() {
   return request<{ status: string; data: User[] }>("/api/users");
@@ -316,6 +328,10 @@ export function updateSupportLogStatus(
   });
 }
 
+/*
+ ---- later will add other fields updating in updateSupportLog
+*/
+
 export function deleteSupportLog(id: number) {
   return request<{
     status: string;
@@ -325,8 +341,17 @@ export function deleteSupportLog(id: number) {
   });
 }
 
+
+// ---------- Example User Object ----------
 /*
-
-SQLSTATE[23001]: Restrict violation: 7 ERROR: update or delete on table "item_types" violates RESTRICT setting of foreign key constraint "support_logs_item_type_id_foreign" on table "support_logs" DETAIL: Key (id)=(9) is referenced from table "support_logs". (Connection: pgsql, Host: 127.0.0.1, Port: 5432, Database: it_support_log, SQL: delete from "item_types" where "id" = 9)
-
+{
+        "id": 5,
+        "name": "Obaid Ullah Zeb",
+        "email": "obaid.ullah@cef.org.pk",
+        "email_verified_at": "2026-10-02T11:01:33.000000Z",
+        "role_id": 3,
+        "designation": "Assistant Developer",
+        "created_at": "2026-10-02T11:01:33.000000Z",
+        "updated_at": "2026-10-02T11:01:33.000000Z"
+    }
 */

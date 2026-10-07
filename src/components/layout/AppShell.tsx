@@ -22,6 +22,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
+      
       <div className="flex items-center gap-2.5 px-5 py-5">
         <div className="flex size-8 items-center justify-center rounded-md bg-primary/15 text-primary-hover">
           <TicketCheck className="size-4.5" />

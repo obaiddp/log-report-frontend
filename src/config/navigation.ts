@@ -5,6 +5,7 @@ import {
   Building2,
   Package,
   type LucideIcon,
+  Users,
 } from "lucide-react";
 
 export type NavItem = {
@@ -16,8 +17,16 @@ export type NavItem = {
 };
 
 export const navItems: NavItem[] = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/support-logs", label: "Support Logs", icon: ClipboardList },
+  { 
+    to: "/", 
+    label: "Dashboard", 
+    icon: LayoutDashboard 
+  },
+  { 
+    to: "/support-logs", 
+    label: "Support Logs", 
+    icon: ClipboardList 
+  },
   {
     to: "/admin/departments",
     label: "Departments",
@@ -35,6 +44,18 @@ export const navItems: NavItem[] = [
     label: "Issue Types",
     icon: Tags,
     permission: "manage_issue_types",
+  },
+  {
+    to: "/admin/users",
+    label: "Users",
+    icon: Users,
+    permission: "manage_users",
+  },
+  {
+    to: "/admin/roles",
+    label: "Roles and Permissions",
+    icon: Users,
+    permission: "manage_roles",
   },
 ];
 
