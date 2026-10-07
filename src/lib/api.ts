@@ -155,17 +155,59 @@ export function updateRolePermissions(roleId: number, permissionIds: number[]) {
 }
 
 // ---------- User ----------
-export type User = { 
-  id: number; 
-  name: string; 
-  email: string; 
+// ---------- User ----------
+export type User = {
+  id: number;
+  name: string;
+  email: string;
+  designation: string | null;
   role_id: number;
-  role?: Role; 
-  designation: string | null; 
+  role?: Role;
+};
+
+// Matches postUsers validation: all five fields are required
+export type CreateUserPayload = {
+  name: string;
+  email: string;
+  password: string;
+  designation: string;
+  role_id: number;
+};
+
+// Matches updateUserById validation: email is NOT updatable, password optional
+export type UpdateUserPayload = {
+  name?: string;
+  password?: string;
+  designation?: string;
+  role_id?: number;
 };
 
 export function getUsers() {
   return request<{ status: string; data: User[] }>("/api/users");
+}
+
+export function getUser(id: number) {
+  return request<{ status: string; data: User }>(`/api/users/${id}`);
+}
+
+export function createUser(payload: CreateUserPayload) {
+  return request<{ status: string; data: User }>("/api/users", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateUser(id: number, payload: UpdateUserPayload) {
+  return request<{ status: string; data: User }>(`/api/users/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteUser(id: number) {
+  return request<{ status: string; message: string }>(`/api/users/${id}`, {
+    method: "DELETE",
+  });
 }
 
 // ---------- Departments ----------

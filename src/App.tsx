@@ -11,6 +11,7 @@ import NotFoundPage from "./pages/NotFoundPage";
 import DepartmentsPage from "./pages/admin/DepartmentsPage";
 import ItemsPage from "./pages/admin/ItemsPage";
 import IssuesPage from "./pages/admin/IssuesPage";
+import UsersPage from "./pages/admin/UsersPage";
 import RolesPermissionsPage from "./pages/admin/RolesPermissionsPage";
 
 function LoginRoute() {
@@ -49,8 +50,7 @@ export default function App() {
           <Route path="/admin/items" element={<ItemsPage />} />
           <Route path="/admin/issues" element={<IssuesPage />} />
           <Route path="/admin/roles" element={<RolesPermissionsPage />} />
-          {/* <Route path="/admin/users" element={<UsersPage />} /> */}
-          {/* <Route path="/admin/issues" element={<IssuesPage />} /> */}
+          <Route path="/admin/users" element={<UsersPage />} />
 
           <Route path="*" element={<NotFoundPage />} />
         </Route>
