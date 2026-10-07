@@ -1,102 +1,82 @@
-# Support Desk Frontend
+# Support Desk — IT Support Log Frontend
 
-Support Desk is the authenticated internal workspace for the IT support log system. It gives support teams a practical way to capture requests, coordinate ownership, follow resolution status, review workload, and export operational reports.
+Internal workspace for capturing, tracking, and reporting IT support logs.
 
-## Stack
+## Tech stack
 
-- React 19 and React Router
-- TypeScript 6 and Vite 8
-- Axios API client
-- Recharts for accessible operational charts
-- Lucide React for interface icons
+- React 19 + TypeScript (strict) + Vite 8
+- React Router 7 for navigation
+- Tailwind CSS v4 with design tokens in `src/index.css` (light theme only)
+- Radix UI primitives (dialog, dropdown-menu, tooltip) wrapped in `src/components/ui/`
+- Recharts for dashboard charts
+- lucide-react for icons
 - Oxlint for linting
+
+## Project structure
+
+```
+src/
+├── main.tsx                  # entry point, mounts AuthProvider
+├── App.tsx                   # router setup and route guards
+├── index.css                 # Tailwind import + theme tokens
+├── context/AuthContext.tsx   # session state (login/logout/me)
+├── config/navigation.ts      # sidebar items, filtered by permissions
+├── lib/
+│   ├── api.ts                # fetch client, API functions, entity types
+│   ├── permissions.ts        # role/permission helpers
+│   └── utils.ts              # cn()
+├── components/
+│   ├── layout/AppShell.tsx   # sidebar + topbar shell
+│   ├── ProtectedLayout.tsx   # auth guard for protected routes
+│   ├── EntityManager.tsx     # shared admin CRUD (departments/items/issues)
+│   ├── SupportLogForm.tsx    # create-log form
+│   └── ui/                   # shared primitives (button, card, dialog, ...)
+└── pages/
+    ├── LoginPage.tsx
+    ├── DashboardPage.tsx     # stats, charts, user performance, recent logs
+    ├── SupportLogsPage.tsx   # logs table, filters, CSV export, dialogs
+    ├── ProfilePage.tsx
+    ├── NotFoundPage.tsx
+    └── admin/                # departments, items, issues, users, roles
+```
+
+## Routes
+
+| Route | Page |
+|---|---|
+| `/login` | sign in |
+| `/` | dashboard |
+| `/support-logs` | support log table (filters, CSV export, create) |
+| `/profile` | current user profile |
+| `/admin/departments` | department manager |
+| `/admin/items` | item types manager |
+| `/admin/issues` | issue types manager |
+| `/admin/users` | user management |
+| `/admin/roles` | role permissions |
+
+Admin routes/nav items are filtered by the user's permissions from the API.
 
 ## Requirements
 
-- Node.js 20.19 or newer
-- npm
-- The Laravel API running locally or remotely
+- Node.js 20.19+ and npm
+- The Laravel backend running (default `http://127.0.0.1:8000`)
 
-## Local setup
+## Running locally
 
 ```bash
 npm install
-cp .env.example .env
-npm run dev
+npm run dev        # http://localhost:5173
 ```
 
-The frontend runs at `http://localhost:5173` by default.
-
-## Environment
-
-```dotenv
-# Must include /api and must not include /v1.
-VITE_API_URL=http://localhost:8000/api
-```
-
-`VITE_API_URL` is the base URL consumed by Axios. The frontend adds the versioned `/v1/...` paths itself. Before login, the frontend calls Sanctum's `/sanctum/csrf-cookie` endpoint, then Axios sends credentials, reads `XSRF-TOKEN`, and sends the `X-XSRF-TOKEN` header for browser requests. The frontend does not store authentication tokens in `localStorage` or `sessionStorage`.
-
-The API must allow the configured frontend origin through `FRONTEND_URL` in the backend `.env`. Keep hostnames consistent when testing locally:
-
-- `localhost:5173` → `localhost:8000`
-- `127.0.0.1:5173` → `127.0.0.1:8000`
+The API base URL is set in `src/lib/api.ts` (`API_URL`). Authentication uses
+Laravel Sanctum with cookie credentials — keep the host consistent with the
+backend's `FRONTEND_URL` (use `localhost` or `127.0.0.1` consistently).
 
 ## Commands
 
 ```bash
-npm run dev      # Start the Vite development server
-npm run build    # Type-check and create a production build
-npm run preview  # Preview the production build
-npm run lint     # Run Oxlint
+npm run dev      # dev server
+npm run build    # type-check + production build
+npm run lint     # oxlint
+npm run preview  # preview production build
 ```
-
-## Authentication and roles
-
-- `/login` is outside the authenticated application shell.
-- A bootstrap request to `GET /v1/auth/me` restores the current session.
-- `POST /v1/auth/login` accepts `email`, `password`, and optional `remember`.
-- `POST /v1/auth/logout` ends the session.
-- A `401` clears the local auth state and returns to `/login`; a `403` is shown on the requesting page without signing the user out.
-- Administrators see Dashboard, Support Logs, Create Log, My Work, Reports, and administration pages.
-- Technical Resources see Support Logs, Create Log, and My Work. Administrators additionally see Dashboard, Reports, and administration. Client-side navigation is only a usability boundary; the API remains authoritative.
-
-## API contract
-
-The frontend consumes these versioned endpoints:
-
-- `/v1/auth/login`, `/v1/auth/logout`, `/v1/auth/me`
-- `/v1/support-log-options` for safe department, issue type, item type, and assignable-user lookups
-- `/v1/support-logs` and `/v1/support-logs/:id`
-- `/v1/dashboard/summary`
-- `/v1/reports/by-department`, `by-resource`, `by-issue-type`, `by-item`, `by-status`, and `export`
-- `/v1/departments`, `/v1/users`, `/v1/issue-types`, and `/v1/item-types`
-
-Lists use Laravel pagination (`data`, `links`, `meta`). Support log filters use `date_from`, `date_to`, `department_id`, `issue_type_id`, `item_type_id`, `status`, `priority`, `assigned_to`, `initiated_by`, `ticket_number`, `search`, `per_page`, `page`, `sort_by`, and `sort_direction`. On support-log forms, `initiated_by` is submitted as the requester's free-text name; `department_id`, `item_type_id`, and `assigned_to` use API IDs, while related `department`, `item_type`, and `assigned_resource` values may be API resource objects and are normalized for display.
-
-Canonical support enums are:
-
-- Status: `open`, `in_progress`, `indoor_repair`, `outdoor_repair`, `resolved`, `closed`, `cancelled`
-- Priority: `low`, `medium`, `high`, `critical`
-- Role: `admin`, `technical_resource`
-
-The UI handles Laravel 422 field errors beside the matching controls, common network failures, authorization errors, loading states, duplicate-submit prevention, and CSV downloads.
-
-## Application routes
-
-- `/login`
-- `/` — administrator dashboard
-- `/support-logs` — searchable, filterable support log queue
-- `/support-logs/new` — create a support log
-- `/support-logs/:id` — support log detail and assignment history
-- `/support-logs/:id/edit` — edit a permitted support log
-- `/my-work` — assigned work queue
-- `/reports` — administrator reports and CSV export
-- `/admin/users` — administrator user management
-- `/admin/departments` — administrator department management
-- `/admin/configuration` — administrator issue/item option management
-
-## Accessibility and responsive behavior
-
-The application includes semantic landmarks, skip navigation, visible focus, keyboard-operable dialogs and tabs, accessible form labels and error summaries, status text alternatives for charts, reduced-motion support, light/dark themes, and table-to-card layouts for narrow screens. Interactive controls use a minimum 44px target where the shared control system applies it.
-
-There is no frontend test harness configured in this repository. Use `npm run lint` and `npm run build` for static verification, and exercise authentication and CRUD flows against a running API. Attachments are intentionally not part of v1; status/priority values are code-defined, while issue/item options are administrator-managed.

@@ -1,65 +1,62 @@
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function ProfilePage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   if (!user) {
     return null;
   }
 
+  const items = [
+    { label: "Name", value: user.name },
+    { label: "Email", value: user.email },
+    { label: "Designation", value: user.designation || "—" },
+    { label: "Role", value: user.role?.name || "—" },
+    {
+      label: "Email Verified",
+      value: user.email_verified_at ? "Yes" : "No",
+    },
+  ];
+
   return (
-    <main className="profile-page">
-      <div className="profile-card">
-        <div className="profile-header">
-          <div>
-            <h1>My Profile</h1>
-            <p>Authenticated user information</p>
-          </div>
-
-          <button onClick={logout}>Logout</button>
-        </div>
-
-        <div className="profile-info">
-          <div>
-            <span>Name</span>
-            <strong>{user.name}</strong>
-          </div>
-
-          <div>
-            <span>Email</span>
-            <strong>{user.email}</strong>
-          </div>
-
-          <div>
-            <span>Designation</span>
-            <strong>{user.designation || "—"}</strong>
-          </div>
-
-          <div>
-            <span>Role</span>
-            <strong>{user.role?.name || "—"}</strong>
-          </div>
-
-          <div>
-            <span>Email Verified</span>
-            <strong>
-              {user.email_verified_at ? "Yes" : "No"}
-            </strong>
-          </div>
-        </div>
-
-        {user.role?.permissions && (
-          <section className="permissions">
-            <h2>Permissions</h2>
-
-            <ul>
-              {user.role.permissions.map((permission) => (
-                <li key={permission.id}>{permission.name}</li>
-              ))}
-            </ul>
-          </section>
-        )}
+    <div id="profile-page" className="max-w-3xl space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold text-foreground">My Profile</h2>
+        <p className="text-sm text-muted-foreground">
+          Your account details and permissions.
+        </p>
       </div>
-    </main>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {items.map((item) => (
+          <div
+            key={item.label}
+            id={`profile-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
+            className="rounded-lg border border-border bg-card p-4"
+          >
+            <p className="text-xs text-muted-foreground">{item.label}</p>
+            <p className="mt-1 text-sm font-medium text-foreground">
+              {item.value}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {user.role?.permissions && (
+        <section className="rounded-lg border border-border bg-card p-4">
+          <h3 className="text-sm font-semibold text-foreground">Permissions</h3>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {user.role.permissions.map((permission) => (
+              <span
+                key={permission.id}
+                className="rounded-full bg-muted px-2.5 py-0.5 text-xs text-foreground"
+              >
+                {permission.name}
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
   );
 }
