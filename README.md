@@ -30,8 +30,7 @@ src/
 │   ├── ProtectedLayout.tsx   # auth guard for protected routes
 │   ├── EntityManager.tsx     # shared admin CRUD (departments/items/issues)
 │   ├── SupportLogForm.tsx    # create-log form
-│   └── ui/                   # button, badge, card, input, select, table,
-│                             # dialog, skeleton, dropdown-menu, tooltip
+│   └── ui/                   # shared primitives (button, card, dialog, ...)
 └── pages/
     ├── LoginPage.tsx
     ├── DashboardPage.tsx     # stats, charts, user performance, recent logs
