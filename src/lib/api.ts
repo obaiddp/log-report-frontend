@@ -154,7 +154,23 @@ export function updateRolePermissions(roleId: number, permissionIds: number[]) {
   });
 }
 
-// ---------- User ----------
+
+// ---------- Dashboard ----------
+export type UserPerformance = {
+  user_id: number;
+  name: string;
+  tickets_assigned: number;
+  tickets_resolved: number;
+  avg_resolution_hours: number | null;
+};
+
+export function getUserPerformance() {
+  return request<{ status: string; data: UserPerformance[] }>(
+    "/api/dashboard/user-performance"
+  );
+}
+
+
 // ---------- User ----------
 export type User = {
   id: number;

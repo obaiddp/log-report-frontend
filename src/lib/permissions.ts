@@ -42,3 +42,8 @@ export function canUpdateLogs(user: UserLike): boolean {
 export function canDeleteLogs(user: UserLike): boolean {
   return user?.role?.name === "admin";
 }
+
+
+export function canViewUserPerformance(user: UserLike): boolean {
+  return hasPermission(user, "user_performance");
+}
