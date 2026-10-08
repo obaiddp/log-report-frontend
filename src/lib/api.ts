@@ -1,4 +1,5 @@
-const API_URL = "http://127.0.0.1:8000";
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 function getXsrfToken(): string | null {
   const cookie = document.cookie
@@ -9,7 +10,9 @@ function getXsrfToken(): string | null {
     return null;
   }
 
-  return decodeURIComponent(cookie.split("=")[1]);
+  return decodeURIComponent(
+    cookie.slice("XSRF-TOKEN=".length)
+  );
 }
 
 // ====================================================
@@ -39,8 +42,40 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+// async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+//   const headers = new Headers(options.headers);
+//   headers.set("Accept", "application/json");
+
+//   if (options.body) {
+//     headers.set("Content-Type", "application/json");
+//   }
+
+//   const xsrfToken = getXsrfToken();
+//   if (xsrfToken) {
+//     headers.set("X-XSRF-TOKEN", xsrfToken);
+//   }
+
+//   const response = await fetch(`${API_URL}${endpoint}`, {
+//     ...options,
+//     credentials: "include",
+//     headers,
+//   });
+
+//   const data = await response.json().catch(() => null);
+
+//   if (!response.ok) {
+//     throw new ApiError(data?.message || "Something went wrong", response.status, data?.errors);
+//   }
+
+//   return data as T;
+// }
+
+async function request<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
   const headers = new Headers(options.headers);
+
   headers.set("Accept", "application/json");
 
   if (options.body) {
@@ -48,6 +83,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 
   const xsrfToken = getXsrfToken();
+
   if (xsrfToken) {
     headers.set("X-XSRF-TOKEN", xsrfToken);
   }
@@ -61,7 +97,11 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new ApiError(data?.message || "Something went wrong", response.status, data?.errors);
+    throw new ApiError(
+      data?.message || "Something went wrong",
+      response.status,
+      data?.errors
+    );
   }
 
   return data as T;
@@ -412,4 +452,18 @@ export function deleteSupportLog(id: number) {
         "created_at": "2026-10-02T11:01:33.000000Z",
         "updated_at": "2026-10-02T11:01:33.000000Z"
     }
+*/
+
+/*
+Browser                          Laravel Server
+   |                                  |
+   |  GET /sanctum/csrf-cookie  ----> |  Creates session
+   |  <---- Set-Cookie: XSRF-TOKEN=X  |  Stores CSRF token in session
+   |  <---- Set-Cookie: laravel_session=S
+   |                                  |
+   |  POST /api/auth/login            |
+   |  Cookie: laravel_session=S  ---> |  Looks up session → gets expected CSRF token
+   |  X-XSRF-TOKEN: X           ---> |  Compares header value against session token ✓
+   |  <---- 200 OK                    |
+
 */
