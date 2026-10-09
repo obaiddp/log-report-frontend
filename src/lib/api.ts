@@ -1,5 +1,10 @@
-const API_URL =
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+// const API_URL =
+//   import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
+const API_URL = (
+  import.meta.env.VITE_API_URL ??
+  (import.meta.env.DEV ? "http://127.0.0.1:8000" : "")
+).replace(/\/+$/, "");
 
 function getXsrfToken(): string | null {
   const cookie = document.cookie
@@ -41,34 +46,6 @@ export class ApiError extends Error {
     this.errors = errors;
   }
 }
-
-// async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-//   const headers = new Headers(options.headers);
-//   headers.set("Accept", "application/json");
-
-//   if (options.body) {
-//     headers.set("Content-Type", "application/json");
-//   }
-
-//   const xsrfToken = getXsrfToken();
-//   if (xsrfToken) {
-//     headers.set("X-XSRF-TOKEN", xsrfToken);
-//   }
-
-//   const response = await fetch(`${API_URL}${endpoint}`, {
-//     ...options,
-//     credentials: "include",
-//     headers,
-//   });
-
-//   const data = await response.json().catch(() => null);
-
-//   if (!response.ok) {
-//     throw new ApiError(data?.message || "Something went wrong", response.status, data?.errors);
-//   }
-
-//   return data as T;
-// }
 
 async function request<T>(
   endpoint: string,
@@ -467,3 +444,32 @@ Browser                          Laravel Server
    |  <---- 200 OK                    |
 
 */
+
+
+// async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+//   const headers = new Headers(options.headers);
+//   headers.set("Accept", "application/json");
+
+//   if (options.body) {
+//     headers.set("Content-Type", "application/json");
+//   }
+
+//   const xsrfToken = getXsrfToken();
+//   if (xsrfToken) {
+//     headers.set("X-XSRF-TOKEN", xsrfToken);
+//   }
+
+//   const response = await fetch(`${API_URL}${endpoint}`, {
+//     ...options,
+//     credentials: "include",
+//     headers,
+//   });
+
+//   const data = await response.json().catch(() => null);
+
+//   if (!response.ok) {
+//     throw new ApiError(data?.message || "Something went wrong", response.status, data?.errors);
+//   }
+
+//   return data as T;
+// }
