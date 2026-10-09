@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/sanctum/:path*", "destination": "https://support-log-api.onrender.com/sanctum/:path*" },
+    { "source": "/api/:path*", "destination": "https://support-log-api.onrender.com/api/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
