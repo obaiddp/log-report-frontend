@@ -1,4 +1,4 @@
-# Support Desk — IT Support Log Frontend
+# CEF365: Frontend
 
 Internal workspace for capturing, tracking, and reporting IT support logs.
 
