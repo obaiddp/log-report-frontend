@@ -45,9 +45,16 @@ type EntityManagerProps<T extends { id: number; name: string }> = {
   create: (values: Record<string, string>) => Promise<{ data: T }>;
   update: (id: number, name: string) => Promise<{ data: T }>;
   remove: (id: number) => Promise<unknown>;
+
   /** Extra columns rendered after the name column. */
   extraCell?: (item: T) => React.ReactNode;
   extraHeader?: string;
+
+  booleanField?: {
+    key: keyof T;
+    label: string;
+    update: (id: number, checked: boolean) => Promise<{ data: T }>;
+  };
 };
 
 export default function EntityManager<T extends { id: number; name: string }>({
@@ -61,6 +68,7 @@ export default function EntityManager<T extends { id: number; name: string }>({
   remove,
   extraCell,
   extraHeader,
+  booleanField,
 }: EntityManagerProps<T>) {
   const [items, setItems] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +78,7 @@ export default function EntityManager<T extends { id: number; name: string }>({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [itemToDelete, setItemToDelete] = useState<T | null>(null);
+  const [updatingBooleanIds, setUpdatingBooleanIds] = useState<number[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -120,6 +129,46 @@ export default function EntityManager<T extends { id: number; name: string }>({
     }
   };
 
+  const handleBooleanChange = async (item: T, checked: boolean) => {
+    if (!booleanField || updatingBooleanIds.includes(item.id)) return;
+
+    setError("");
+
+    // Update the checkbox immediately while the API request runs.
+    setItems((prev) =>
+      prev.map((current) =>
+        current.id === item.id
+          ? ({ ...current, [booleanField.key]: checked } as T)
+          : current
+      )
+    );
+
+    setUpdatingBooleanIds((prev) => [...prev, item.id]);
+
+    try {
+      const res = await booleanField.update(item.id, checked);
+
+      setItems((prev) =>
+        prev.map((current) =>
+          current.id === item.id ? res.data : current
+        )
+      );
+    } catch (err) {
+      // Restore the original value if saving fails.
+      setItems((prev) =>
+        prev.map((current) =>
+          current.id === item.id ? item : current
+        )
+      );
+
+      setError(errorMessage(err));
+    } finally {
+      setUpdatingBooleanIds((prev) =>
+        prev.filter((id) => id !== item.id)
+      );
+    }
+  };
+
   return (
     <Card id={`entity-${title.toLowerCase().replace(/\s+/g, "-")}`}>
       <CardHeader>
@@ -164,6 +213,16 @@ export default function EntityManager<T extends { id: number; name: string }>({
                 <TableHead>ID</TableHead>
                 <TableHead>Name</TableHead>
                 {extraHeader && <TableHead>{extraHeader}</TableHead>}
+                {booleanField && (
+                  <TableHead>
+                    <span
+                      title="Enables RAM, Generation, and Hard Drive fields in the Asset Inspection form."
+                      className="cursor-help underline decoration-dotted underline-offset-4"
+                    >
+                      {booleanField.label} ⓘ
+                    </span>
+                  </TableHead>
+                )}
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -171,7 +230,7 @@ export default function EntityManager<T extends { id: number; name: string }>({
               {items.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={extraHeader ? 4 : 3}
+                    colSpan={3 + (extraHeader ? 1 : 0) + (booleanField ? 1 : 0)}
                     className="py-8 text-center text-muted-foreground"
                   >
                     No entries yet. Add the first one above.
@@ -193,6 +252,30 @@ export default function EntityManager<T extends { id: number; name: string }>({
                       )}
                     </TableCell>
                     {extraCell && <TableCell>{extraCell(item)}</TableCell>}
+                    
+                    {booleanField && (
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(item[booleanField.key])}
+                            disabled={updatingBooleanIds.includes(item.id)}
+                            onChange={(e) =>
+                              void handleBooleanChange(item, e.target.checked)
+                            }
+                            aria-label={`${booleanField.label} for ${item.name}`}
+                            className="h-4 w-4 cursor-pointer accent-primary disabled:cursor-not-allowed"
+                          />
+
+                          {updatingBooleanIds.includes(item.id) && (
+                            <span className="text-xs text-muted-foreground">
+                              Saving...
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
+                    )}
+
                     <TableCell className="space-x-2 text-right">
                       {editingId === item.id ? (
                         <>

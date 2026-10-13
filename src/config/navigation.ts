@@ -1,4 +1,5 @@
 import {
+  ClipboardCheck,
   ClipboardList,
   LayoutDashboard,
   Tags,
@@ -26,6 +27,11 @@ export const navItems: NavItem[] = [
     to: "/support-logs", 
     label: "Support Logs", 
     icon: ClipboardList 
+  },
+  {
+    to: "/asset-inspections",
+    label: "Asset Inspections",
+    icon: ClipboardCheck,
   },
   {
     to: "/admin/departments",

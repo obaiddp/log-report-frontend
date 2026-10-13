@@ -298,16 +298,16 @@ export function deleteIssue(id: number) {
 }
 
 // ---------- Items ----------
-export type Item = { id: number; name: string; };
+export type Item = { id: number; name: string; has_specification: boolean };
 
 export function getItems() {
   return request<{ status: string; data: Item[] }>("/api/items");
 }
 
-export function createItem(name: string ) {
+export function createItem(name: string, has_specification: boolean ) {
   return request<{ status: string; data: Item }>("/api/items", {
     method: "POST",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, has_specification }),
   });
 }
 
@@ -315,6 +315,13 @@ export function updateItem(id: number, name: string ) {
   return request<{ status: string; data: Item }>(`/api/items/${id}`, {
     method: "PUT",
     body: JSON.stringify({ name }),
+  });
+}
+
+export function updateItemHasSpecification(id: number, has_specification: boolean) {
+  return request<{ status: string; data: Item }>(`/api/items/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({ has_specification }),
   });
 }
 
@@ -416,60 +423,131 @@ export function deleteSupportLog(id: number) {
   });
 }
 
+// ---------- Asset Inspections ----------
+export type AssetInspectionStatus = string;
 
-// ---------- Example User Object ----------
-/*
-{
-        "id": 5,
-        "name": "Obaid Ullah Zeb",
-        "email": "obaid.ullah@cef.org.pk",
-        "email_verified_at": "2026-10-02T11:01:33.000000Z",
-        "role_id": 3,
-        "designation": "Assistant Developer",
-        "created_at": "2026-10-02T11:01:33.000000Z",
-        "updated_at": "2026-10-02T11:01:33.000000Z"
-    }
-*/
+export type AssetInspection = {
+  id: number;
 
-/*
-Browser                          Laravel Server
-   |                                  |
-   |  GET /sanctum/csrf-cookie  ----> |  Creates session
-   |  <---- Set-Cookie: XSRF-TOKEN=X  |  Stores CSRF token in session
-   |  <---- Set-Cookie: laravel_session=S
-   |                                  |
-   |  POST /api/auth/login            |
-   |  Cookie: laravel_session=S  ---> |  Looks up session → gets expected CSRF token
-   |  X-XSRF-TOKEN: X           ---> |  Compares header value against session token ✓
-   |  <---- 200 OK                    |
+  // User / employee information
+  username: string;
+  designation: string | null;
+  email: string | null;
+  cell: string | null;
 
-*/
+  // Inspection details
+  department_id: number;
+  territory: string | null;
+  status: AssetInspectionStatus | null;
 
+  item_type_id: number;
+  model: string;
+  brand: string;
+  serial_number: string | null;
+  item_tag: string | null;
 
-// async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-//   const headers = new Headers(options.headers);
-//   headers.set("Accept", "application/json");
+  // Hardware specifications
+  ram: string | null;
+  generation: string | null;
+  hard_drive: string | null;
 
-//   if (options.body) {
-//     headers.set("Content-Type", "application/json");
-//   }
+  // Problem and remarks
+  item_problem: string | null;
+  it_remarks: string | null;
+  admin_remarks: string | null;
 
-//   const xsrfToken = getXsrfToken();
-//   if (xsrfToken) {
-//     headers.set("X-XSRF-TOKEN", xsrfToken);
-//   }
+  // Prepared by and signatures
+  prepared_by: number | User;
+  user_signature: string | null;
+  admin_signature: string | null;
 
-//   const response = await fetch(`${API_URL}${endpoint}`, {
-//     ...options,
-//     credentials: "include",
-//     headers,
-//   });
+  // Relationships returned by Laravel
+  department?: Department;
+  item_type?: Item;
+  preparedBy?: User;
 
-//   const data = await response.json().catch(() => null);
+  created_at: string;
+  updated_at: string;
+};
 
-//   if (!response.ok) {
-//     throw new ApiError(data?.message || "Something went wrong", response.status, data?.errors);
-//   }
+export type AssetInspectionInput = {
+  username: string;
+  designation?: string | null;
+  email?: string | null;
+  cell?: string | null;
 
-//   return data as T;
-// }
+  department_id: number;
+  territory?: string | null;
+  status?: AssetInspectionStatus | null;
+
+  item_type_id: number;
+  model: string;
+  brand: string;
+  serial_number?: string | null;
+  item_tag?: string | null;
+
+  ram?: string | null;
+  generation?: string | null;
+  hard_drive?: string | null;
+
+  item_problem?: string | null;
+  it_remarks?: string | null;
+  admin_remarks?: string | null;
+
+  prepared_by: number;
+  user_signature?: string | null;
+  admin_signature?: string | null;
+};
+
+// Get all asset inspections
+export function getAssetInspections() {
+  return request<{
+    status: string;
+    data: AssetInspection[];
+  }>("/api/asset-inspections");
+}
+
+// Get one asset inspection
+export function getAssetInspection(id: number) {
+  return request<{
+    status: string;
+    data: AssetInspection;
+  }>(`/api/asset-inspections/${id}`);
+}
+
+// Create an asset inspection
+export function createAssetInspection(data: AssetInspectionInput) {
+  return request<{
+    status: string;
+    data: AssetInspection;
+  }>("/api/asset-inspections", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+// Update selected asset inspection fields
+export function updateAssetInspection(
+  id: number,
+  data: Partial<AssetInspectionInput>
+) {
+  return request<{
+    status: string;
+    message: string;
+    data: AssetInspection;
+  }>(`/api/asset-inspections/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+// Delete an asset inspection
+export function deleteAssetInspection(id: number) {
+  return request<{
+    status: string;
+    message?: string;
+    data?: AssetInspection;
+  }>(`/api/asset-inspections/${id}`, {
+    method: "DELETE",
+  });
+}

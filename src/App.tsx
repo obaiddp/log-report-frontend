@@ -7,6 +7,9 @@ import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProfilePage from "./pages/ProfilePage";
 import SupportLogsPage from "./pages/SupportLogsPage";
+import AssetInspectionsPage from "./pages/AssetInspectionsPage";
+import AssetInspectionFormPage from "./pages/AssetInspectionFormPage";
+import AssetInspectionDetailPage from "./pages/AssetInspectionDetailPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import DepartmentsPage from "./pages/admin/DepartmentsPage";
 import ItemsPage from "./pages/admin/ItemsPage";
@@ -45,6 +48,11 @@ export default function App() {
           <Route path="/" element={<DashboardPage />} />
           
           <Route path="/support-logs" element={<SupportLogsPage />} />
+
+          <Route path="/asset-inspections" element={<AssetInspectionsPage />} />
+          <Route path="/asset-inspections/new" element={<AssetInspectionFormPage />} />
+          <Route path="/asset-inspections/:id" element={<AssetInspectionDetailPage />} />
+          <Route path="/asset-inspections/:id/edit" element={<AssetInspectionFormPage />} />
           <Route path="/admin/departments" element={<DepartmentsPage />} />
           
           <Route path="/admin/items" element={<ItemsPage />} />
