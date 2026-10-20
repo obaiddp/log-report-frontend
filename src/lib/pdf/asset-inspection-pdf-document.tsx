@@ -9,6 +9,7 @@ import {
 
 import type { AssetInspection } from "@/lib/api";
 import {
+  adminUserName,
   formatDateTime,
   formatInspectionStatus,
   orDash,
@@ -200,9 +201,13 @@ const styles = StyleSheet.create({
     fontSize: 6.5,
     letterSpacing: 0.5,
     color: COLORS.label,
-    marginBottom: 30,
+    marginBottom: 4,
   },
-  signatureImage: { width: 150, maxHeight: 26, objectFit: "contain" },
+  signatureSignedAt: {
+    fontSize: 7.5,
+    color: COLORS.value,
+    marginBottom: 26,
+  },
   signatureLine: {
     width: 170,
     borderBottomWidth: 0.7,
@@ -229,11 +234,6 @@ function cell(value: string | number | null | undefined): string {
   }
 
   return raw;
-}
-
-/** True when a signature column holds image data rather than a typed name. */
-function isImageSource(value: string): boolean {
-  return /^(data:image\/|https?:\/\/|\/)/i.test(value);
 }
 
 /** e.g. "Thursday, September 17, 2026 12:02 PM" */
@@ -315,17 +315,16 @@ function NoteRow({
   );
 }
 
-function SignatureSlot({ source }: { source: string }) {
-  const value = cell(source);
-
+function SignatureSlot({ signedAt }: { signedAt?: string | null }) {
   return (
     <View style={styles.signatureSlot}>
       <Text style={styles.signatureSlotLabel}>SIGNATURE</Text>
-      {isImageSource(value) ? (
-        <Image src={value} style={styles.signatureImage} />
+      {signedAt ? (
+        <Text style={styles.signatureSignedAt}>{formatDateTime(signedAt)}</Text>
       ) : (
-        <View style={styles.signatureLine} />
+        <View style={styles.signatureSignedAt} />
       )}
+      <View style={styles.signatureLine} />
     </View>
   );
 }
@@ -334,13 +333,13 @@ function SignatureRow({
   role,
   name,
   designation,
-  signatureSource,
+  signedAt,
   isLast = false,
 }: {
   role: string;
   name: string;
   designation: string;
-  signatureSource: string;
+  signedAt?: string | null;
   isLast?: boolean;
 }) {
   return (
@@ -353,7 +352,7 @@ function SignatureRow({
         <Text style={styles.signatureName}>{cell(name)}</Text>
         <Text style={styles.signatureDesignation}>{cell(designation)}</Text>
       </View>
-      <SignatureSlot source={signatureSource} />
+      <SignatureSlot signedAt={signedAt} />
     </View>
   );
 }
@@ -371,9 +370,6 @@ export function AssetInspectionDocument({
     typeof inspection.prepared_by === "number" ? null : inspection.prepared_by;
 
   const acceptsSpecifications = inspection.item_type?.has_specification === true;
-
-  const adminSignature = cell(inspection.admin_signature);
-  const adminSignatureIsImage = isImageSource(adminSignature);
 
   const userLeftRows = [
     { label: "ID", value: cell(inspection.id) },
@@ -490,19 +486,19 @@ export function AssetInspectionDocument({
             role="REPORT PREPARED BY"
             name={preparedByName(inspection)}
             designation={preparedByUser?.designation ?? ""}
-            signatureSource=""
+            signedAt={inspection.prepared_signed_at}
           />
           <SignatureRow
             role="USER SIGNATURE"
             name={inspection.username}
             designation={inspection.designation ?? ""}
-            signatureSource={inspection.user_signature ?? ""}
+            signedAt={inspection.user_signed_at}
           />
           <SignatureRow
             role="ADMIN DEPARTMENT"
-            name={adminSignatureIsImage ? "" : adminSignature}
+            name={adminUserName(inspection)}
             designation=""
-            signatureSource={adminSignatureIsImage ? adminSignature : ""}
+            signedAt={inspection.admin_signed_at}
             isLast
           />
         </View>

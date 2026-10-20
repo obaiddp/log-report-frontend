@@ -1,4 +1,4 @@
-import type { AssetInspection } from "@/lib/api";
+import type { AssetApprovalStatus, AssetInspection, User } from "@/lib/api";
 
 export function formatInspectionStatus(status: string | null | undefined): string {
   if (!status) return "Not set";
@@ -8,14 +8,105 @@ export function formatInspectionStatus(status: string | null | undefined): strin
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-export function preparedByName(inspection: AssetInspection): string {
-  const prepared = inspection.prepared_by;
+/**
+ * The logged in user, with the department the backend loads on /api/auth/me.
+ * The auth context only types the fields the profile page needs.
+ */
+export type AssetInspectionUser = {
+  id: number;
+  name?: string;
+  email?: string;
+  designation?: string | null;
+  department?: { id?: number; name?: string; code?: string } | null;
+};
 
-  if (prepared && typeof prepared === "object" && "name" in prepared) {
-    return prepared.name;
+/** Name of a person, whether the API returned the user object or only an id. */
+export function personName(value: number | User | null | undefined): string {
+  if (value && typeof value === "object") {
+    return value.name?.trim() || "—";
   }
 
   return "—";
+}
+
+export function preparedByName(inspection: AssetInspection): string {
+  return personName(inspection.prepared_by);
+}
+
+export function adminUserName(inspection: AssetInspection): string {
+  return personName(inspection.admin_user);
+}
+
+export function formatApprovalStatus(
+  status: AssetApprovalStatus | null | undefined
+): string {
+  switch (status) {
+    case "pending_admin":
+      return "Awaiting admin";
+    case "completed":
+      return "Completed";
+    case "returned":
+      return "Returned";
+    default:
+      return "Unknown";
+  }
+}
+
+export type ApprovalBadgeVariant = "outline" | "solved" | "destructive";
+
+export function approvalBadgeVariant(
+  status: AssetApprovalStatus | null | undefined
+): ApprovalBadgeVariant {
+  switch (status) {
+    case "completed":
+      return "solved";
+    case "returned":
+      return "destructive";
+    default:
+      return "outline";
+  }
+}
+
+export function inspectionPreparerId(inspection: AssetInspection): number | null {
+  const prepared = inspection.prepared_by;
+
+  if (typeof prepared === "number") return prepared;
+
+  return prepared?.id ?? null;
+}
+
+export function inspectionAdminId(inspection: AssetInspection): number | null {
+  const admin = inspection.admin_user;
+
+  if (typeof admin === "number") return admin;
+
+  return admin?.id ?? null;
+}
+
+/**
+ * The ICT preparer owns the record until the admin completes it. The server
+ * enforces the same rule, the UI only hides the actions.
+ */
+export function canEditInspection(
+  inspection: AssetInspection,
+  user: AssetInspectionUser | null | undefined
+): boolean {
+  if (!user) return false;
+  if (user.department?.code !== "ict") return false;
+  if (inspection.approval_status === "completed") return false;
+
+  return inspectionPreparerId(inspection) === user.id;
+}
+
+/** Only the assigned admin can sign or return a pending inspection. */
+export function canSignInspection(
+  inspection: AssetInspection,
+  user: AssetInspectionUser | null | undefined
+): boolean {
+  if (!user) return false;
+  if (inspection.approval_status !== "pending_admin") return false;
+
+  return inspectionAdminId(inspection) === user.id;
 }
 
 export function inspectionSearchText(inspection: AssetInspection): string {
@@ -32,6 +123,8 @@ export function inspectionSearchText(inspection: AssetInspection): string {
     inspection.item_tag,
     inspection.item_problem,
     inspection.status,
+    inspection.approval_status,
+    adminUserName(inspection),
   ]
     .filter(Boolean)
     .join(" ")
