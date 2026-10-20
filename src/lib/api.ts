@@ -196,6 +196,7 @@ export type User = {
   designation: string | null;
   role_id: number;
   role?: Role;
+  department?: Department;
 };
 
 // Matches postUsers validation: all five fields are required
@@ -422,14 +423,15 @@ export function deleteSupportLog(id: number) {
     method: "DELETE",
   });
 }
-
 // ---------- Asset Inspections ----------
 export type AssetInspectionStatus = string;
+
+export type AssetApprovalStatus = "pending_admin" | "completed" | "returned";
 
 export type AssetInspection = {
   id: number;
 
-  // User / employee information
+  // Person bringing the item
   username: string;
   designation: string | null;
   email: string | null;
@@ -438,7 +440,7 @@ export type AssetInspection = {
   // Inspection details
   department_id: number;
   territory: string | null;
-  status: AssetInspectionStatus | null;
+  status: AssetInspectionStatus | null; // item status, not approval status
 
   item_type_id: number;
   model: string;
@@ -456,20 +458,33 @@ export type AssetInspection = {
   it_remarks: string | null;
   admin_remarks: string | null;
 
-  // Prepared by and signatures
+  // Approval workflow (all set by the server)
+  approval_status: AssetApprovalStatus;
+  return_reason: string | null;
+
+  // The API loads these relations, and Laravel serializes the relation over
+  // the column, so these are User objects on every read endpoint.
   prepared_by: number | User;
-  user_signature: string | null;
-  admin_signature: string | null;
+  admin_user: number | User;
+
+  prepared_by_digital_signature: boolean;
+  user_digital_signature: boolean;
+  admin_digital_signature: boolean;
+
+  prepared_signed_at: string | null;
+  user_signed_at: string | null;
+  admin_signed_at: string | null;
 
   // Relationships returned by Laravel
   department?: Department;
   item_type?: Item;
-  preparedBy?: User;
 
   created_at: string;
   updated_at: string;
 };
 
+// Create: signatures and prepared_by are set by the server.
+// user_digital_signature must be true (IT confirms the user acknowledged).
 export type AssetInspectionInput = {
   username: string;
   designation?: string | null;
@@ -492,11 +507,23 @@ export type AssetInspectionInput = {
 
   item_problem?: string | null;
   it_remarks?: string | null;
-  admin_remarks?: string | null;
 
-  prepared_by: number;
-  user_signature?: string | null;
-  admin_signature?: string | null;
+  admin_user: number;
+  user_digital_signature: true;
+};
+
+// Update: same fields, all optional, and no acknowledgement flag.
+export type AssetInspectionUpdateInput = Partial<
+  Omit<AssetInspectionInput, "user_digital_signature">
+>;
+
+export type AssetInspectionSignInput = {
+  admin_remarks?: string | null;
+};
+
+export type AssetInspectionReturnInput = {
+  return_reason: string;
+  admin_remarks?: string | null;
 };
 
 // Get all asset inspections
@@ -515,10 +542,11 @@ export function getAssetInspection(id: number) {
   }>(`/api/asset-inspections/${id}`);
 }
 
-// Create an asset inspection
+// Create an asset inspection (ICT)
 export function createAssetInspection(data: AssetInspectionInput) {
   return request<{
     status: string;
+    message: string;
     data: AssetInspection;
   }>("/api/asset-inspections", {
     method: "POST",
@@ -526,11 +554,8 @@ export function createAssetInspection(data: AssetInspectionInput) {
   });
 }
 
-// Update selected asset inspection fields
-export function updateAssetInspection(
-  id: number,
-  data: Partial<AssetInspectionInput>
-) {
+// Update an asset inspection (the ICT preparer, until it is completed)
+export function updateAssetInspection(id: number, data: AssetInspectionUpdateInput) {
   return request<{
     status: string;
     message: string;
@@ -541,12 +566,35 @@ export function updateAssetInspection(
   });
 }
 
-// Delete an asset inspection
+// Sign as the assigned admin; completes the inspection
+export function signAssetInspection(id: number, data: AssetInspectionSignInput = {}) {
+  return request<{
+    status: string;
+    message: string;
+    data: AssetInspection;
+  }>(`/api/asset-inspections/${id}/sign-admin`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+// Return to the ICT preparer with a reason (assigned admin)
+export function returnAssetInspection(id: number, data: AssetInspectionReturnInput) {
+  return request<{
+    status: string;
+    message: string;
+    data: AssetInspection;
+  }>(`/api/asset-inspections/${id}/return`, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+// Delete an asset inspection (the ICT preparer, until it is completed)
 export function deleteAssetInspection(id: number) {
   return request<{
     status: string;
     message?: string;
-    data?: AssetInspection;
   }>(`/api/asset-inspections/${id}`, {
     method: "DELETE",
   });

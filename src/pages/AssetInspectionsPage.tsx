@@ -7,16 +7,24 @@ import {
   deleteAssetInspection,
   getAssetInspections,
   getDepartments,
+  type AssetApprovalStatus,
   type AssetInspection,
   type Department,
 } from "@/lib/api";
 import {
+  adminUserName,
+  approvalBadgeVariant,
+  canEditInspection,
+  canSignInspection,
+  formatApprovalStatus,
   formatDateTime,
   formatInspectionStatus,
   inspectionSearchText,
   orDash,
   preparedByName,
+  type AssetInspectionUser,
 } from "@/lib/asset-inspections";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,7 +56,16 @@ function csvCell(value: string | number | null | undefined): string {
   return `"${String(value ?? "").replace(/"/g, '""')}"`;
 }
 
+const APPROVAL_FILTERS: AssetApprovalStatus[] = [
+  "pending_admin",
+  "completed",
+  "returned",
+];
+
 export default function AssetInspectionsPage() {
+  const { user } = useAuth();
+  const authUser: AssetInspectionUser | null = user;
+
   const [inspections, setInspections] = useState<AssetInspection[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +74,7 @@ export default function AssetInspectionsPage() {
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [approvalFilter, setApprovalFilter] = useState("");
 
   const [deleteTarget, setDeleteTarget] = useState<AssetInspection | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -102,10 +120,12 @@ export default function AssetInspectionsPage() {
       const matchesDepartment =
         !departmentFilter || String(inspection.department_id) === departmentFilter;
       const matchesStatus = !statusFilter || inspection.status === statusFilter;
+      const matchesApproval =
+        !approvalFilter || inspection.approval_status === approvalFilter;
 
-      return matchesSearch && matchesDepartment && matchesStatus;
+      return matchesSearch && matchesDepartment && matchesStatus && matchesApproval;
     });
-  }, [departmentFilter, inspections, search, statusFilter]);
+  }, [approvalFilter, departmentFilter, inspections, search, statusFilter]);
 
   async function handleDelete() {
     if (!deleteTarget) return;
@@ -150,6 +170,10 @@ export default function AssetInspectionsPage() {
       "Admin remarks",
       "Prepared by",
       "Status",
+      "Approval status",
+      "Admin",
+      "Admin signed at",
+      "Return reason",
       "Last updated",
     ];
 
@@ -173,6 +197,10 @@ export default function AssetInspectionsPage() {
       inspection.admin_remarks,
       preparedByName(inspection),
       inspection.status,
+      inspection.approval_status,
+      adminUserName(inspection),
+      inspection.admin_signed_at,
+      inspection.return_reason,
       inspection.updated_at,
     ]);
 
@@ -186,16 +214,18 @@ export default function AssetInspectionsPage() {
     URL.revokeObjectURL(url);
   }
 
-  const hasFilters = Boolean(search || departmentFilter || statusFilter);
+  const hasFilters = Boolean(search || departmentFilter || statusFilter || approvalFilter);
 
   return (
     <div id="asset-inspections-page" className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Asset inspections</h2>
-          <p className="text-sm text-muted-foreground">
-            Record the person, equipment, findings and sign-off for every inspection.
-          </p>
+
+
+
+
+
         </div>
 
         <div className="flex items-center gap-2">
@@ -264,6 +294,21 @@ export default function AssetInspectionsPage() {
               ))}
             </Select>
 
+            <Select
+              id="asset-inspection-approval-filter"
+              value={approvalFilter}
+              onChange={(event) => setApprovalFilter(event.target.value)}
+              className="w-44"
+              aria-label="Filter by approval status"
+            >
+              <option value="">All approvals</option>
+              {APPROVAL_FILTERS.map((approval) => (
+                <option key={approval} value={approval}>
+                  {formatApprovalStatus(approval)}
+                </option>
+              ))}
+            </Select>
+
             {hasFilters && (
               <Button
                 variant="ghost"
@@ -272,6 +317,7 @@ export default function AssetInspectionsPage() {
                   setSearch("");
                   setDepartmentFilter("");
                   setStatusFilter("");
+                  setApprovalFilter("");
                 }}
               >
                 Clear filters
@@ -298,6 +344,7 @@ export default function AssetInspectionsPage() {
                   <TableHead>Tag / serial</TableHead>
                   <TableHead>Problem</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Approval</TableHead>
                   <TableHead>Prepared by</TableHead>
                   <TableHead>Updated</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -306,7 +353,7 @@ export default function AssetInspectionsPage() {
               <TableBody>
                 {filteredInspections.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
+                    <TableCell colSpan={10} className="py-10 text-center text-muted-foreground">
                       No asset inspections found. Adjust the filters or create a new inspection.
                     </TableCell>
                   </TableRow>
@@ -349,31 +396,49 @@ export default function AssetInspectionsPage() {
                           <span className="text-muted-foreground">Not set</span>
                         )}
                       </TableCell>
+                      <TableCell>
+                        <Badge variant={approvalBadgeVariant(inspection.approval_status)}>
+                          {formatApprovalStatus(inspection.approval_status)}
+                        </Badge>
+                        {canSignInspection(inspection, authUser) && (
+                          <div className="mt-1 text-xs font-medium text-primary-hover">
+                            Needs your signature
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell>{preparedByName(inspection)}</TableCell>
                       <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                         {formatDateTime(inspection.updated_at)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+
                           <Button asChild variant="ghost" size="icon" aria-label={`View inspection for ${inspection.username}`}>
                             <Link to={`/asset-inspections/${inspection.id}`}>
                               <Eye className="size-4" />
                             </Link>
                           </Button>
-                          <Button asChild variant="ghost" size="icon" aria-label={`Edit inspection for ${inspection.username}`}>
-                            <Link to={`/asset-inspections/${inspection.id}/edit`}>
-                              <Pencil className="size-4" />
-                            </Link>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-muted-foreground hover:text-destructive"
-                            onClick={() => setDeleteTarget(inspection)}
-                            aria-label={`Delete inspection for ${inspection.username}`}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
+
+                          {canEditInspection(inspection, authUser) && (
+                            <Button asChild variant="ghost" size="icon" aria-label={`Edit inspection for ${inspection.username}`}>
+                              <Link to={`/asset-inspections/${inspection.id}/edit`}>
+                                <Pencil className="size-4" />
+                              </Link>
+                            </Button>
+                          )}
+
+                          {canEditInspection(inspection, authUser) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={() => setDeleteTarget(inspection)}
+                              aria-label={`Delete inspection for ${inspection.username}`}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          )}
+
                         </div>
                       </TableCell>
                     </TableRow>

@@ -1,19 +1,44 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  type ReactNode,
+  type TextareaHTMLAttributes,
+} from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Download, Loader2, Pencil, RefreshCw, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Download,
+  Loader2,
+  Pencil,
+  PenLine,
+  RefreshCw,
+  Trash2,
+  Undo2,
+} from "lucide-react";
 
 import {
   ApiError,
   deleteAssetInspection,
   getAssetInspection,
+  returnAssetInspection,
+  signAssetInspection,
   type AssetInspection,
 } from "@/lib/api";
 import {
+  adminUserName,
+  approvalBadgeVariant,
+  canEditInspection,
+  canSignInspection,
+  formatApprovalStatus,
   formatDateTime,
   formatInspectionStatus,
   orDash,
   preparedByName,
+  type AssetInspectionUser,
 } from "@/lib/asset-inspections";
+import { useAuth } from "@/context/AuthContext";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +51,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const MAX_RETURN_REASON = 2000;
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback;
@@ -50,9 +77,31 @@ function Notes({ value }: { value: string | null }) {
   return <span className="whitespace-pre-wrap text-sm text-foreground">{value}</span>;
 }
 
+function ErrorText({ message }: { message: string }) {
+  return (
+    <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+      {message}
+    </p>
+  );
+}
+
+function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      className={cn(
+        "min-h-24 w-full rounded-md border border-input bg-card px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
 export default function AssetInspectionDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const authUser: AssetInspectionUser | null = user;
 
   const [inspection, setInspection] = useState<AssetInspection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,6 +110,14 @@ export default function AssetInspectionDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
+
+  const [adminRemarks, setAdminRemarks] = useState("");
+  const [showSign, setShowSign] = useState(false);
+  const [showReturn, setShowReturn] = useState(false);
+  const [returnReason, setReturnReason] = useState("");
+  const [returnReasonError, setReturnReasonError] = useState("");
+  const [approving, setApproving] = useState(false);
+  const [approvalError, setApprovalError] = useState("");
 
   const loadInspection = useCallback(async () => {
     if (!id) return;
@@ -118,6 +175,65 @@ export default function AssetInspectionDetailPage() {
     }
   }
 
+  async function handleSign() {
+    if (!inspection) return;
+
+    try {
+      setApproving(true);
+      setApprovalError("");
+
+      const response = await signAssetInspection(inspection.id, {
+        admin_remarks: adminRemarks.trim() || null,
+      });
+
+      setInspection(response.data);
+      setShowSign(false);
+      setAdminRemarks("");
+    } catch (signError) {
+      setApprovalError(errorMessage(signError, "Failed to sign the asset inspection."));
+    } finally {
+      setApproving(false);
+    }
+  }
+
+  async function handleReturn() {
+    if (!inspection) return;
+
+    const reason = returnReason.trim();
+
+    if (!reason) {
+      setReturnReasonError("Enter a reason so the IT team knows what to correct.");
+      return;
+    }
+
+    if (reason.length > MAX_RETURN_REASON) {
+      setReturnReasonError(`Keep the reason under ${MAX_RETURN_REASON} characters.`);
+      return;
+    }
+
+    try {
+      setApproving(true);
+      setApprovalError("");
+
+      const response = await returnAssetInspection(inspection.id, {
+        return_reason: reason,
+        admin_remarks: adminRemarks.trim() || null,
+      });
+
+      setInspection(response.data);
+      setShowReturn(false);
+      setReturnReason("");
+      setReturnReasonError("");
+      setAdminRemarks("");
+    } catch (returnError) {
+      setApprovalError(
+        errorMessage(returnError, "Failed to return the asset inspection.")
+      );
+    } finally {
+      setApproving(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -147,6 +263,10 @@ export default function AssetInspectionDetailPage() {
     );
   }
 
+  const canEdit = canEditInspection(inspection, authUser);
+  const canApprove = canSignInspection(inspection, authUser);
+  const isReturned = inspection.approval_status === "returned";
+
   return (
     <div id="asset-inspection-detail" className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -163,6 +283,9 @@ export default function AssetInspectionDetailPage() {
             {inspection.status && (
               <Badge variant="outline">{formatInspectionStatus(inspection.status)}</Badge>
             )}
+            <Badge variant={approvalBadgeVariant(inspection.approval_status)}>
+              {formatApprovalStatus(inspection.approval_status)}
+            </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
             {inspection.brand} {inspection.model}
@@ -184,14 +307,18 @@ export default function AssetInspectionDetailPage() {
             )}
             {exporting ? "Preparing PDF..." : "Export as PDF"}
           </Button>
-          <Button asChild variant="outline" size="sm">
-            <Link to={`/asset-inspections/${inspection.id}/edit`}>
-              <Pencil className="size-4" /> Edit
-            </Link>
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowDelete(true)}>
-            <Trash2 className="size-4" /> Delete
-          </Button>
+          {canEdit && (
+            <Button asChild variant="outline" size="sm">
+              <Link to={`/asset-inspections/${inspection.id}/edit`}>
+                <Pencil className="size-4" /> Edit
+              </Link>
+            </Button>
+          )}
+          {canEdit && (
+            <Button variant="outline" size="sm" onClick={() => setShowDelete(true)}>
+              <Trash2 className="size-4" /> Delete
+            </Button>
+          )}
         </div>
       </div>
 
@@ -205,6 +332,15 @@ export default function AssetInspectionDetailPage() {
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {exportError}
         </p>
+      )}
+
+      {isReturned && (
+        <div className="rounded-md bg-status-indoor-bg px-3 py-2 text-sm text-status-indoor-text">
+          <p className="font-medium">Returned to IT by the admin.</p>
+          <p className="mt-1 whitespace-pre-wrap">
+            {inspection.return_reason || "No reason was recorded."}
+          </p>
+        </div>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -261,12 +397,89 @@ export default function AssetInspectionDetailPage() {
             <CardTitle className="text-base">Preparation and sign-off</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <DetailField label="Prepared by" value={preparedByName(inspection)} />
-            <DetailField label="User signature" value={orDash(inspection.user_signature)} />
-            <DetailField label="Admin signature" value={orDash(inspection.admin_signature)} />
+            <DetailField
+              label="Prepared by"
+              value={
+                <>
+                  <div className="font-medium text-foreground">
+                    {preparedByName(inspection)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatDateTime(inspection.prepared_signed_at)}
+                  </div>
+                </>
+              }
+            />
+            <DetailField
+              label="User acknowledged"
+              value={
+                inspection.user_digital_signature
+                  ? formatDateTime(inspection.user_signed_at)
+                  : "Not acknowledged"
+              }
+            />
+            <DetailField
+              label="Admin"
+              value={
+                <>
+                  <div className="font-medium text-foreground">
+                    {adminUserName(inspection)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {inspection.admin_signed_at
+                      ? formatDateTime(inspection.admin_signed_at)
+                      : "Awaiting signature"}
+                  </div>
+                </>
+              }
+            />
             <DetailField label="Last updated" value={formatDateTime(inspection.updated_at)} />
           </CardContent>
         </Card>
+
+        {canApprove && (
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-base">Admin approval</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="asset-inspection-admin-remarks"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Admin remarks
+                </label>
+                <Textarea
+                  id="asset-inspection-admin-remarks"
+                  rows={3}
+                  value={adminRemarks}
+                  onChange={(event) => setAdminRemarks(event.target.value)}
+                  disabled={approving}
+                  placeholder="Optional remarks saved with your signature..."
+                />
+              </div>
+
+              {approvalError && <ErrorText message={approvalError} />}
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setReturnReasonError("");
+                    setShowReturn(true);
+                  }}
+                  disabled={approving}
+                >
+                  <Undo2 className="size-4" /> Return to IT
+                </Button>
+                <Button onClick={() => setShowSign(true)} disabled={approving}>
+                  <PenLine className="size-4" /> Sign as admin
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Dialog open={showDelete} onOpenChange={setShowDelete}>
@@ -285,6 +498,91 @@ export default function AssetInspectionDetailPage() {
             </Button>
             <Button variant="destructive" onClick={() => void handleDelete()} disabled={deleting}>
               {deleting ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showSign}
+        onOpenChange={(open) => {
+          if (!approving) setShowSign(open);
+        }}
+      >
+        <DialogContent id="dialog-sign-asset-inspection">
+          <DialogHeader>
+            <DialogTitle>Sign asset inspection</DialogTitle>
+            <DialogDescription>
+              Signing as admin completes this inspection for{" "}
+              <span className="font-medium text-foreground">{inspection.username}</span>. The
+              IT team can no longer edit it.
+            </DialogDescription>
+          </DialogHeader>
+          {approvalError && <ErrorText message={approvalError} />}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSign(false)} disabled={approving}>
+              Cancel
+            </Button>
+            <Button onClick={() => void handleSign()} disabled={approving}>
+              {approving ? "Signing..." : "Sign as admin"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={showReturn}
+        onOpenChange={(open) => {
+          if (!approving) setShowReturn(open);
+        }}
+      >
+        <DialogContent id="dialog-return-asset-inspection">
+          <DialogHeader>
+            <DialogTitle>Return to IT</DialogTitle>
+            <DialogDescription>
+              The inspection goes back to{" "}
+              <span className="font-medium text-foreground">
+                {preparedByName(inspection)}
+              </span>{" "}
+              with the reason below.
+            </DialogDescription>
+          </DialogHeader>
+
+          {approvalError && <ErrorText message={approvalError} />}
+
+          <div className="space-y-1.5">
+            <label
+              htmlFor="asset-inspection-return-reason"
+              className="text-sm font-medium text-foreground"
+            >
+              Return reason <span className="text-destructive">*</span>
+            </label>
+            <Textarea
+              id="asset-inspection-return-reason"
+              rows={4}
+              value={returnReason}
+              onChange={(event) => {
+                setReturnReason(event.target.value);
+                setReturnReasonError("");
+              }}
+              disabled={approving}
+              placeholder="Explain what has to be corrected before approval..."
+            />
+            {returnReasonError && (
+              <p className="text-xs text-destructive">{returnReasonError}</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReturn(false)} disabled={approving}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void handleReturn()}
+              disabled={approving}
+            >
+              {approving ? "Returning..." : "Return to IT"}
             </Button>
           </DialogFooter>
         </DialogContent>

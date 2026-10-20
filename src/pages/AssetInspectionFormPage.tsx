@@ -19,10 +19,16 @@ import {
   updateAssetInspection,
   type AssetInspection,
   type AssetInspectionInput,
+  type AssetInspectionUpdateInput,
   type Department,
   type Item,
   type User,
 } from "@/lib/api";
+import {
+  canEditInspection,
+  preparedByName,
+  type AssetInspectionUser,
+} from "@/lib/asset-inspections";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -49,10 +55,7 @@ type FormState = {
   hardDrive: string;
   itemProblem: string;
   itRemarks: string;
-  adminRemarks: string;
-  preparedBy: string;
-  userSignature: string;
-  adminSignature: string;
+  adminId: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -73,17 +76,23 @@ const EMPTY_FORM: FormState = {
   hardDrive: "",
   itemProblem: "",
   itRemarks: "",
-  adminRemarks: "",
-  preparedBy: "",
-  userSignature: "",
-  adminSignature: "",
+  adminId: "",
 };
 
-const SERVER_FIELD_KEYS: Record<string, keyof FormState> = {
+// Server side field names mapped onto the form state keys.
+const SERVER_FIELD_KEYS: Record<string, string> = {
   department_id: "departmentId",
   item_type_id: "itemTypeId",
-  prepared_by: "preparedBy",
+  admin_user: "adminId",
+  user_digital_signature: "userAcknowledged",
 };
+
+const INSPECTION_STATUSES = [
+  "handover_for_repairing",
+  "recieved_after_repairing",
+  "new_purchase",
+  "others",
+] as const;
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback;
@@ -101,6 +110,11 @@ function fieldErrorsFrom(error: ApiError): Record<string, string> {
 }
 
 function toFormState(inspection: AssetInspection): FormState {
+  const admin =
+    typeof inspection.admin_user === "number"
+      ? inspection.admin_user
+      : inspection.admin_user?.id;
+
   return {
     username: inspection.username ?? "",
     designation: inspection.designation ?? "",
@@ -119,13 +133,7 @@ function toFormState(inspection: AssetInspection): FormState {
     hardDrive: inspection.hard_drive ?? "",
     itemProblem: inspection.item_problem ?? "",
     itRemarks: inspection.it_remarks ?? "",
-    adminRemarks: inspection.admin_remarks ?? "",
-    preparedBy:
-      typeof inspection.prepared_by === "number"
-        ? String(inspection.prepared_by)
-        : String(inspection.prepared_by?.id ?? ""),
-    userSignature: inspection.user_signature ?? "",
-    adminSignature: inspection.admin_signature ?? "",
+    adminId: admin ? String(admin) : "",
   };
 }
 
@@ -174,13 +182,16 @@ function Field({
 export default function AssetInspectionFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user: authUser } = useAuth();
+  const { user } = useAuth();
+  const authUser: AssetInspectionUser | null = user;
   const isEditing = Boolean(id);
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [inspection, setInspection] = useState<AssetInspection | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [userAcknowledged, setUserAcknowledged] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -205,6 +216,7 @@ export default function AssetInspectionFormPage() {
 
       if (id) {
         const inspectionResponse = await getAssetInspection(Number(id));
+        setInspection(inspectionResponse.data);
         setForm(toFormState(inspectionResponse.data));
       } else {
         setForm((current) => ({
@@ -212,7 +224,6 @@ export default function AssetInspectionFormPage() {
           username: current.username || authUser?.name || "",
           email: current.email || authUser?.email || "",
           designation: current.designation || authUser?.designation || "",
-          preparedBy: current.preparedBy || String(authUser?.id ?? ""),
         }));
       }
     } catch (loadError) {
@@ -226,6 +237,15 @@ export default function AssetInspectionFormPage() {
     void loadForm();
   }, [loadForm]);
 
+  // The form belongs to the ICT preparer only, and never to a completed record.
+  useEffect(() => {
+    if (!isEditing || !inspection || loading) return;
+
+    if (!canEditInspection(inspection, authUser)) {
+      navigate(`/asset-inspections/${inspection.id}`, { replace: true });
+    }
+  }, [authUser, inspection, isEditing, loading, navigate]);
+
   function updateField(field: keyof FormState, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
     setFieldErrors((current) => {
@@ -238,6 +258,10 @@ export default function AssetInspectionFormPage() {
 
   const selectedItem = items.find((item) => String(item.id) === form.itemTypeId);
   const acceptsSpecifications = selectedItem?.has_specification === true;
+
+  const preparedByLabel = inspection
+    ? preparedByName(inspection)
+    : authUser?.name || "—";
 
   function handleItemTypeChange(value: string) {
     const nextItem = items.find((item) => String(item.id) === value);
@@ -269,7 +293,10 @@ export default function AssetInspectionFormPage() {
     if (!form.itemTypeId) errors.itemTypeId = "Select an item type.";
     if (!form.brand.trim()) errors.brand = "Enter the item brand.";
     if (!form.model.trim()) errors.model = "Enter the item model.";
-    if (!form.preparedBy) errors.preparedBy = "Select who prepared this inspection.";
+    if (!form.adminId) errors.adminId = "Select the admin who approves this inspection.";
+    if (!isEditing && !userAcknowledged) {
+      errors.userAcknowledged = "Confirm that the user acknowledged the inspection details.";
+    }
     if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       errors.email = "Enter a valid email address.";
     }
@@ -284,7 +311,7 @@ export default function AssetInspectionFormPage() {
 
     const optional = (value: string) => value.trim() || null;
 
-    const payload: AssetInspectionInput = {
+    const fields = {
       username: form.username.trim(),
       designation: optional(form.designation),
       email: optional(form.email),
@@ -302,10 +329,7 @@ export default function AssetInspectionFormPage() {
       hard_drive: acceptsSpecifications ? optional(form.hardDrive) : null,
       item_problem: optional(form.itemProblem),
       it_remarks: optional(form.itRemarks),
-      admin_remarks: optional(form.adminRemarks),
-      prepared_by: Number(form.preparedBy),
-      user_signature: optional(form.userSignature),
-      admin_signature: optional(form.adminSignature),
+      admin_user: Number(form.adminId),
     };
 
     try {
@@ -314,8 +338,14 @@ export default function AssetInspectionFormPage() {
       setFieldErrors({});
 
       const response = isEditing
-        ? await updateAssetInspection(Number(id), payload)
-        : await createAssetInspection(payload);
+        ? await updateAssetInspection(
+            Number(id),
+            fields satisfies AssetInspectionUpdateInput
+          )
+        : await createAssetInspection({
+            ...fields,
+            user_digital_signature: true,
+          } satisfies AssetInspectionInput);
 
       navigate(`/asset-inspections/${response.data.id}`, { replace: true });
     } catch (submitError) {
@@ -330,6 +360,20 @@ export default function AssetInspectionFormPage() {
     }
   }
 
+  const isReturned = isEditing && inspection?.approval_status === "returned";
+  const accessDenied =
+    isEditing && inspection !== null && !canEditInspection(inspection, authUser);
+
+  // The record belongs to the ICT preparer, a completed one is read only.
+  if (accessDenied) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    );
+  }
+
   return (
     <form id="asset-inspection-form" onSubmit={handleSubmit} className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -342,13 +386,6 @@ export default function AssetInspectionFormPage() {
           <h2 className="text-lg font-semibold text-foreground">
             {isEditing ? "Edit asset inspection" : "New asset inspection"}
           </h2>
-
-          {/* <p className="text-sm text-muted-foreground">
-            {isEditing
-              ? "Update the recorded person, equipment details and sign-off."
-              : "Capture who brought the item, its condition and the inspection findings."}
-          </p> */}
-
         </div>
       </div>
 
@@ -356,6 +393,18 @@ export default function AssetInspectionFormPage() {
         <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </p>
+      )}
+
+      {isReturned && (
+        <div className="rounded-md bg-status-indoor-bg px-3 py-2 text-sm text-status-indoor-text">
+          <p className="font-medium">This inspection was returned by the admin.</p>
+          <p className="mt-1 whitespace-pre-wrap">
+            {inspection?.return_reason || "No reason was recorded."}
+          </p>
+          <p className="mt-1">
+            Saving the changes resubmits it to the admin for approval.
+          </p>
+        </div>
       )}
 
       {loading ? (
@@ -366,7 +415,8 @@ export default function AssetInspectionFormPage() {
         </div>
       ) : (
         <>
-          <Card>
+          { authUser?.department?.code === "ict" && (
+            <Card>
             <CardHeader>
               <CardTitle className="text-base">Person bringing the item</CardTitle>
             </CardHeader>
@@ -374,7 +424,7 @@ export default function AssetInspectionFormPage() {
               <Field id="inspection-username" label="Full name" required error={fieldErrors.username}>
                 <Input
                   id="inspection-username"
-                  // value={form.username}
+                  value={form.username}
                   onChange={(event) => updateField("username", event.target.value)}
                   disabled={submitting}
                   autoComplete="name"
@@ -384,7 +434,7 @@ export default function AssetInspectionFormPage() {
               <Field id="inspection-designation" label="Designation" error={fieldErrors.designation}>
                 <Input
                   id="inspection-designation"
-                  // value={form.designation}
+                  value={form.designation}
                   onChange={(event) => updateField("designation", event.target.value)}
                   disabled={submitting}
                 />
@@ -394,7 +444,7 @@ export default function AssetInspectionFormPage() {
                 <Input
                   id="inspection-email"
                   type="email"
-                  // value={form.email}
+                  value={form.email}
                   onChange={(event) => updateField("email", event.target.value)}
                   disabled={submitting}
                   autoComplete="email"
@@ -443,8 +493,11 @@ export default function AssetInspectionFormPage() {
               </Field>
             </CardContent>
           </Card>
+          )}
 
-          <Card>
+
+          { authUser?.department?.code === "ict" && (
+            <Card>
             <CardHeader>
               <CardTitle className="text-base">Item details</CardTitle>
             </CardHeader>
@@ -476,13 +529,20 @@ export default function AssetInspectionFormPage() {
               </Field>
 
               <Field id="inspection-status" label="Status" error={fieldErrors.status}>
-                <Input
+                <Select
                   id="inspection-status"
                   value={form.status}
                   onChange={(event) => updateField("status", event.target.value)}
                   disabled={submitting}
-                  placeholder="pending"
-                />
+                >
+                  <option value="">Select status</option>
+
+                  {INSPECTION_STATUSES.map((statusItem) => (
+                    <option key={statusItem} value={statusItem}>
+                      {statusItem.replace(/_/g, " ")}
+                    </option>
+                  ))}
+                </Select>
               </Field>
 
               <Field id="inspection-brand" label="Brand" required error={fieldErrors.brand}>
@@ -561,13 +621,16 @@ export default function AssetInspectionFormPage() {
               )}
             </CardContent>
           </Card>
+          )}
+
 
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Inspection findings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Field id="inspection-problem" label="Item problem" error={fieldErrors.item_problem}>
+              {(authUser?.department?.code === "ict") && (
+                <Field id="inspection-problem" label="Item problem" error={fieldErrors.item_problem}>
                 <Textarea
                   id="inspection-problem"
                   rows={3}
@@ -577,8 +640,11 @@ export default function AssetInspectionFormPage() {
                   placeholder="Describe the problem reported with the item..."
                 />
               </Field>
+              )}
 
-              <Field id="inspection-it-remarks" label="IT remarks" error={fieldErrors.it_remarks}>
+              {(authUser?.department?.code === "ict") && (
+
+<Field id="inspection-it-remarks" label="IT remarks" error={fieldErrors.it_remarks}>
                 <Textarea
                   id="inspection-it-remarks"
                   rows={3}
@@ -588,17 +654,7 @@ export default function AssetInspectionFormPage() {
                   placeholder="Findings and recommendations from the IT team..."
                 />
               </Field>
-
-              <Field id="inspection-admin-remarks" label="Admin remarks" error={fieldErrors.admin_remarks}>
-                <Textarea
-                  id="inspection-admin-remarks"
-                  rows={3}
-                  value={form.adminRemarks}
-                  onChange={(event) => updateField("adminRemarks", event.target.value)}
-                  disabled={submitting}
-                  placeholder="Approval or management remarks..."
-                />
-              </Field>
+              )}
             </CardContent>
           </Card>
 
@@ -606,48 +662,79 @@ export default function AssetInspectionFormPage() {
             <CardHeader>
               <CardTitle className="text-base">Preparation and sign-off</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Field id="inspection-prepared-by" label="Prepared by" required error={fieldErrors.preparedBy}>
-                <Select
-                  id="inspection-prepared-by"
-                  value={form.preparedBy}
-                  onChange={(event) => updateField("preparedBy", event.target.value)}
-                  disabled={submitting}
-                >
-                  <option value="">Select preparer</option>
-                  {users.map((user) => (
-                    <option key={user.id} value={user.id}>
-                      {user.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
 
-              <Field id="inspection-user-signature" label="User signature" error={fieldErrors.user_signature}>
-                <Input
-                  id="inspection-user-signature"
-                  value={form.userSignature}
-                  onChange={(event) => updateField("userSignature", event.target.value)}
-                  disabled={submitting}
-                  placeholder="Name or reference"
-                />
-              </Field>
-
+            <CardContent className="space-y-4">
               <Field
-                id="inspection-admin-signature"
-                label="Admin signature"
-                error={fieldErrors.admin_signature}
+                id="inspection-prepared-by"
+                label="Prepared by"
+                hint="Recorded automatically from your account."
               >
-                <Input
-                  id="inspection-admin-signature"
-                  value={form.adminSignature}
-                  onChange={(event) => updateField("adminSignature", event.target.value)}
-                  disabled={submitting}
-                  placeholder="Name or reference"
-                />
+                <p id="inspection-prepared-by" className="text-sm text-foreground">
+                  {preparedByLabel}
+                </p>
               </Field>
+
+              {(authUser?.department?.code === "ict") && !isEditing && (
+                <Field
+                  id="inspection-user-acknowledged"
+                  label="User acknowledged"
+                  required
+                  error={fieldErrors.userAcknowledged}
+                  hint="Confirm that the person bringing the item acknowledged these details."
+                >
+                  <div className="flex items-center gap-2 text-sm">
+                    <input
+                      id="inspection-user-acknowledged"
+                      type="checkbox"
+                      checked={userAcknowledged}
+                      onChange={(event) => setUserAcknowledged(event.target.checked)}
+                      disabled={submitting}
+                    />
+                    <span>The user confirmed the details of this inspection.</span>
+                  </div>
+                </Field>
+              )}
             </CardContent>
           </Card>
+
+          { authUser?.department?.code === "ict" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Select Admin</CardTitle>
+              </CardHeader>
+
+              <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+
+                <Field
+                  id="inspection-admin"
+                  label="Admin User"
+                  required
+                  error={fieldErrors.adminId}
+                  hint="The admin receives the inspection for approval."
+                >
+                  <Select
+                    id="inspection-admin"
+                    value={form.adminId}
+                    onChange={(event) => updateField("adminId", event.target.value)}
+                    disabled={submitting}
+                  >
+                    <option value="">Select admin user</option>
+
+                    {users
+                      .filter((user) => user.department?.code === "admin-log")
+                      .map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.name}
+                        </option>
+                      ))}
+                  </Select>
+                </Field>
+
+              </CardContent>
+            </Card>
+            )
+          }
+
         </>
       )}
 
