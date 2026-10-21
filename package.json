@@ -2,7 +2,7 @@
   "name": "log-report-frontend",
   "private": true,
   "version": "0.0.0",
-  "description": "React frontend for the IT support log system.",
+  "description": "CEF365 — React frontend for the IT support log and asset inspection system.",
   "type": "module",
   "scripts": {
     "dev": "vite",

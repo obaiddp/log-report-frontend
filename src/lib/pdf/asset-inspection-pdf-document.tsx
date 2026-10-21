@@ -17,13 +17,13 @@ import {
 } from "@/lib/asset-inspections";
 
 /**
- * Optional company logo.
+ * Company logo used in the PDF header.
  *
- * Drop a PNG/JPG into `src/assets/` and paste its data URI (or a reachable URL)
- * here. When null, a neutral ICT monogram is drawn instead so the form never
- * ships with a broken image.
+ * Served from `public/images/cef-logo-1.png` — react-pdf resolves it over the
+ * network in the browser. When null, a neutral ICT monogram is drawn instead
+ * so the form never ships with a broken image.
  */
-const LOGO_SRC: string | null = null;
+const LOGO_SRC: string | null = "/images/cef-logo-1.png";
 
 const COLORS = {
   sectionBg: "#3f3f46",

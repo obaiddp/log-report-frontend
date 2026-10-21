@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { TicketCheck } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -49,13 +48,12 @@ export default function LoginPage() {
         className="relative z-10 w-full max-w-sm rounded-lg border border-border bg-card/95 p-8 shadow-2xl shadow-foreground/25 backdrop-blur-sm"
       >
         <div className="mb-6 flex items-center gap-2.5">
-          <div className="flex size-9 items-center justify-center rounded-md bg-primary/15 text-primary-hover">
-            <TicketCheck className="size-5" />
-          </div>
-          <div>
-            <h1 className="text-base font-semibold text-foreground">Support Desk</h1>
-            <p className="text-xs text-muted-foreground">IT Support Log</p>
-          </div>
+          <img
+            src="/images/cef-logo-1.png"
+            alt="CEF"
+            className="size-9 rounded-full"
+          />
+          <h1 className="text-base font-semibold text-foreground">CEF365</h1>
         </div>
 
         <h2 className="text-lg font-semibold text-foreground">Sign in</h2>

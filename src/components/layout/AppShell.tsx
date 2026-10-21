@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, LogOut, Menu, TicketCheck, User as UserIcon, X } from "lucide-react";
+import { ChevronDown, LogOut, Menu, User as UserIcon, X } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import { filterNavItems, navItems } from "@/config/navigation";
@@ -24,13 +24,12 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
     <div className="flex h-full flex-col">
       
       <div className="flex items-center gap-2.5 px-5 py-5">
-        <div className="flex size-8 items-center justify-center rounded-md bg-primary/15 text-primary-hover">
-          <TicketCheck className="size-4.5" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold leading-tight text-foreground">Support Desk</p>
-          <p className="text-[11px] leading-tight text-muted-foreground">IT Support Log</p>
-        </div>
+        <img
+          src="/images/cef-logo-1.png"
+          alt="CEF"
+          className="size-8 rounded-full"
+        />
+        <p className="text-sm font-semibold leading-tight text-foreground">CEF365</p>
       </div>
 
       <nav id="main-nav" className="flex-1 space-y-0.5 px-3">
@@ -82,7 +81,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       item.to === "/"
         ? location.pathname === "/"
         : location.pathname.startsWith(item.to)
-    )?.label ?? (location.pathname.startsWith("/profile") ? "Profile" : "Support Desk");
+    )?.label ?? (location.pathname.startsWith("/profile") ? "Profile" : "CEF365");
 
   return (
     <div className="min-h-screen bg-background">
