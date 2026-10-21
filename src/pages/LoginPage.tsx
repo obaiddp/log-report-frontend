@@ -33,8 +33,21 @@ export default function LoginPage() {
   }
 
   return (
-    <main id="login-page" className="flex min-h-screen items-center justify-center bg-background p-6">
-      <div id="login-card" className="w-full max-w-sm rounded-lg border border-border bg-card p-8">
+    <main
+      id="login-page"
+      className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-6"
+    >
+      {/* Backdrop: put your own photo in public/images/login-background.jpg */}
+      <div aria-hidden="true" className="login-background absolute inset-0" />
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-linear-to-br from-foreground/60 via-foreground/30 to-foreground/60"
+      />
+
+      <div
+        id="login-card"
+        className="relative z-10 w-full max-w-sm rounded-lg border border-border bg-card/95 p-8 shadow-2xl shadow-foreground/25 backdrop-blur-sm"
+      >
         <div className="mb-6 flex items-center gap-2.5">
           <div className="flex size-9 items-center justify-center rounded-md bg-primary/15 text-primary-hover">
             <TicketCheck className="size-5" />

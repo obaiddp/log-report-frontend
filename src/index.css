@@ -76,3 +76,24 @@ body {
   font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
 }
+
+/*
+  Login page backdrop.
+
+  Drop your own photo in `public/images/` and it takes over automatically —
+  any of these names works: login-background.jpeg, .jpg, .png, .webp.
+  The bundled SVG at the bottom is only the fallback that keeps the page
+  looking intentional while no photo is provided. The first file that exists
+  is the one that is painted, the missing ones are simply skipped.
+*/
+.login-background {
+  background-image:
+    url("/images/login-background.jpeg"),
+    url("/images/login-background.jpg"),
+    url("/images/login-background.png"),
+    url("/images/login-background.webp"),
+    url("/images/login-background.svg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}

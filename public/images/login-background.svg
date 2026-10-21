@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" role="presentation">
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1220" />
+      <stop offset="45%" stop-color="#132033" />
+      <stop offset="100%" stop-color="#1d2c1a" />
+    </linearGradient>
+
+    <radialGradient id="glowGreen" cx="0.78" cy="0.22" r="0.55">
+      <stop offset="0%" stop-color="#78a03f" stop-opacity="0.55" />
+      <stop offset="60%" stop-color="#78a03f" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#78a03f" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="glowBlue" cx="0.16" cy="0.82" r="0.6">
+      <stop offset="0%" stop-color="#3e5370" stop-opacity="0.6" />
+      <stop offset="60%" stop-color="#3e5370" stop-opacity="0.14" />
+      <stop offset="100%" stop-color="#3e5370" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="vignette" cx="0.5" cy="0.5" r="0.75">
+      <stop offset="55%" stop-color="#000000" stop-opacity="0" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.45" />
+    </radialGradient>
+
+    <pattern id="grid" width="64" height="64" patternUnits="userSpaceOnUse">
+      <path d="M64 0H0V64" fill="none" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1" />
+    </pattern>
+
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="90" />
+    </filter>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#base)" />
+  <rect width="1920" height="1080" fill="url(#grid)" />
+
+  <g filter="url(#soft)">
+    <circle cx="1520" cy="240" r="300" fill="#78a03f" fill-opacity="0.32" />
+    <circle cx="320" cy="880" r="340" fill="#3e5370" fill-opacity="0.38" />
+    <circle cx="980" cy="560" r="220" fill="#5c7d2e" fill-opacity="0.18" />
+  </g>
+
+  <rect width="1920" height="1080" fill="url(#glowGreen)" />
+  <rect width="1920" height="1080" fill="url(#glowBlue)" />
+  <rect width="1920" height="1080" fill="url(#vignette)" />
+</svg>
