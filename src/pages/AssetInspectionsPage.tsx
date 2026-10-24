@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Download, Eye, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 
@@ -25,6 +25,7 @@ import {
   type AssetInspectionUser,
 } from "@/lib/asset-inspections";
 import { useAuth } from "@/context/AuthContext";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,6 +63,17 @@ const APPROVAL_FILTERS: AssetApprovalStatus[] = [
   "returned",
 ];
 
+/** Cheap fingerprint of the list, used to skip needless re-renders. */
+function inspectionSignature(items: AssetInspection[]): string {
+  return JSON.stringify(
+    items.map((inspection) => [
+      inspection.id,
+      inspection.updated_at,
+      inspection.approval_status,
+    ])
+  );
+}
+
 export default function AssetInspectionsPage() {
   const { user } = useAuth();
   const authUser: AssetInspectionUser | null = user;
@@ -79,28 +91,56 @@ export default function AssetInspectionsPage() {
   const [deleteTarget, setDeleteTarget] = useState<AssetInspection | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const loadInspections = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
+  const inspectionsSignatureRef = useRef("");
+  const departmentsSignatureRef = useRef("");
 
-      const [inspectionsResponse, departmentsResponse] = await Promise.all([
-        getAssetInspections(),
-        getDepartments(),
-      ]);
+  const loadInspections = useCallback(
+    async (options: { silent?: boolean } = {}) => {
+      const { silent = false } = options;
 
-      setInspections(inspectionsResponse.data);
-      setDepartments(departmentsResponse.data);
-    } catch (loadError) {
-      setError(errorMessage(loadError, "Failed to load asset inspections."));
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      try {
+        // A background refresh keeps the current rows on screen, so the table
+        // never flashes the skeleton while another user is working.
+        if (!silent) {
+          setLoading(true);
+          setError("");
+        }
+
+        const [inspectionsResponse, departmentsResponse] = await Promise.all([
+          getAssetInspections(),
+          getDepartments(),
+        ]);
+
+        const inspectionsSignature = inspectionSignature(inspectionsResponse.data);
+        if (inspectionsSignature !== inspectionsSignatureRef.current) {
+          inspectionsSignatureRef.current = inspectionsSignature;
+          setInspections(inspectionsResponse.data);
+        }
+
+        const departmentsSignature = JSON.stringify(departmentsResponse.data);
+        if (departmentsSignature !== departmentsSignatureRef.current) {
+          departmentsSignatureRef.current = departmentsSignature;
+          setDepartments(departmentsResponse.data);
+        }
+      } catch (loadError) {
+        if (!silent) {
+          setError(errorMessage(loadError, "Failed to load asset inspections."));
+        }
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     void loadInspections();
   }, [loadInspections]);
+
+  // Picks up changes made by the ICT user and by the admin approver.
+  useAutoRefresh(() => loadInspections({ silent: true }));
 
   const statusOptions = useMemo(() => {
     const unique = new Set(
@@ -137,6 +177,8 @@ export default function AssetInspectionsPage() {
         current.filter((inspection) => inspection.id !== deleteTarget.id)
       );
       setDeleteTarget(null);
+      // Pull the fresh list right away instead of waiting for the next tick.
+      await loadInspections({ silent: true });
     } catch (deleteError) {
       setError(errorMessage(deleteError, "Failed to delete the asset inspection."));
     } finally {

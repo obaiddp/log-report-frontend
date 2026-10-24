@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
   type TextareaHTMLAttributes,
@@ -23,6 +24,7 @@ import {
   getAssetInspection,
   returnAssetInspection,
   signAssetInspection,
+  type AssetApprovalStatus,
   type AssetInspection,
 } from "@/lib/api";
 import {
@@ -38,6 +40,8 @@ import {
   type AssetInspectionUser,
 } from "@/lib/asset-inspections";
 import { useAuth } from "@/context/AuthContext";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
+import { useToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -102,6 +106,7 @@ export default function AssetInspectionDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const authUser: AssetInspectionUser | null = user;
+  const { toast } = useToast();
 
   const [inspection, setInspection] = useState<AssetInspection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -119,25 +124,78 @@ export default function AssetInspectionDetailPage() {
   const [approving, setApproving] = useState(false);
   const [approvalError, setApprovalError] = useState("");
 
-  const loadInspection = useCallback(async () => {
-    if (!id) return;
+  // Last known approval status, used to detect changes made by the other side.
+  const approvalStatusRef = useRef<AssetApprovalStatus | null>(null);
+  const recordSignatureRef = useRef("");
 
-    try {
-      setLoading(true);
-      setError("");
+  const loadInspection = useCallback(
+    async (options: { silent?: boolean } = {}) => {
+      const { silent = false } = options;
+      if (!id) return;
 
-      const response = await getAssetInspection(Number(id));
-      setInspection(response.data);
-    } catch (loadError) {
-      setError(errorMessage(loadError, "Failed to load the asset inspection."));
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+      try {
+        // A background refresh keeps the record on screen, the page never
+        // falls back to the skeleton while the other side is working.
+        if (!silent) {
+          setLoading(true);
+          setError("");
+        }
+
+        const response = await getAssetInspection(Number(id));
+        const data = response.data;
+
+        const previousStatus = approvalStatusRef.current;
+        approvalStatusRef.current = data.approval_status;
+
+        if (previousStatus !== null && previousStatus !== data.approval_status) {
+          toast({ title: "This inspection was updated" });
+        }
+
+        // Only re-render when the record really changed.
+        const signature = JSON.stringify([
+          data.id,
+          data.updated_at,
+          data.approval_status,
+        ]);
+        if (signature !== recordSignatureRef.current) {
+          recordSignatureRef.current = signature;
+          setInspection(data);
+        }
+      } catch (loadError) {
+        if (
+          loadError instanceof ApiError &&
+          (loadError.status === 403 || loadError.status === 404)
+        ) {
+          navigate("/asset-inspections", { replace: true });
+          return;
+        }
+
+        if (!silent) {
+          setError(errorMessage(loadError, "Failed to load the asset inspection."));
+        }
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    [id, navigate, toast]
+  );
 
   useEffect(() => {
     void loadInspection();
   }, [loadInspection]);
+
+  // A different record starts over, the first load never announces a change.
+  useEffect(() => {
+    approvalStatusRef.current = null;
+  }, [id]);
+
+  // Picks up changes made by the other side, but never while a dialog is
+  // open or an action is running, so nothing typed is lost.
+  useAutoRefresh(() => loadInspection({ silent: true }), {
+    enabled: !showSign && !showReturn && !showDelete && !approving && !deleting,
+  });
 
   async function handleExportPdf() {
     if (!inspection) return;
@@ -186,9 +244,14 @@ export default function AssetInspectionDetailPage() {
         admin_remarks: adminRemarks.trim() || null,
       });
 
+      // Our own action, so the status change is not announced as a toast.
+      approvalStatusRef.current = response.data.approval_status;
       setInspection(response.data);
       setShowSign(false);
       setAdminRemarks("");
+
+      // Pull the fresh record right away instead of waiting for the next tick.
+      await loadInspection({ silent: true });
     } catch (signError) {
       setApprovalError(errorMessage(signError, "Failed to sign the asset inspection."));
     } finally {
@@ -220,11 +283,16 @@ export default function AssetInspectionDetailPage() {
         admin_remarks: adminRemarks.trim() || null,
       });
 
+      // Our own action, so the status change is not announced as a toast.
+      approvalStatusRef.current = response.data.approval_status;
       setInspection(response.data);
       setShowReturn(false);
       setReturnReason("");
       setReturnReasonError("");
       setAdminRemarks("");
+
+      // Pull the fresh record right away instead of waiting for the next tick.
+      await loadInspection({ silent: true });
     } catch (returnError) {
       setApprovalError(
         errorMessage(returnError, "Failed to return the asset inspection.")

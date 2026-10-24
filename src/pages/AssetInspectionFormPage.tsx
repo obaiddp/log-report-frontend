@@ -233,6 +233,8 @@ export default function AssetInspectionFormPage() {
     }
   }, [authUser, id]);
 
+  // The form is never auto-refreshed: a background reload would overwrite
+  // what the user is typing. It is fetched once, when the form is opened.
   useEffect(() => {
     void loadForm();
   }, [loadForm]);

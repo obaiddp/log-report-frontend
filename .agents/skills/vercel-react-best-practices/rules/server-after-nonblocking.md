@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     const userAgent = (await headers()).get('user-agent') || 'unknown'
     const sessionCookie = (await cookies()).get('session-id')?.value || 'anonymous'
     
-    await logUserAction({ sessionCookie, userAgent })
+    logUserAction({ sessionCookie, userAgent })
   })
   
   return new Response(JSON.stringify({ status: 'success' }), {
@@ -55,14 +55,14 @@ export async function POST(request: Request) {
 }
 ```
 
-The response can finish before the callback runs, while Next.js keeps the route alive for the returned callback Promise. Await asynchronous work inside the callback so the platform can track its completion.
+The response is sent immediately while logging happens in the background.
 
 **Common use cases:**
 
 - Analytics tracking
 - Audit logging
 - Sending notifications
-- Non-user-visible cache maintenance
+- Cache invalidation
 - Cleanup tasks
 
 **Important notes:**

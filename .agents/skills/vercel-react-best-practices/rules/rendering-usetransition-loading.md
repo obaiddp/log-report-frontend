@@ -7,7 +7,7 @@ tags: rendering, transitions, useTransition, loading, state
 
 ## Use useTransition Over Manual Loading States
 
-Use `useTransition` when an Action performs a non-urgent update and the UI should remain responsive. Its `isPending` state can replace some manual pending bookkeeping. It does not cancel requests or guarantee that async results commit in request order.
+Use `useTransition` instead of manual `useState` for loading states. This provides built-in `isPending` state and automatically manages transitions.
 
 **Incorrect (manual loading state):**
 
@@ -38,22 +38,20 @@ function SearchResults() {
 **Correct (useTransition with built-in pending state):**
 
 ```tsx
-import { useRef, useState, useTransition } from 'react'
+import { useTransition, useState } from 'react'
 
 function SearchResults() {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [isPending, startTransition] = useTransition()
-  const latestRequest = useRef(0)
 
   const handleSearch = (value: string) => {
-    setQuery(value) // Urgent input update
-    const requestId = ++latestRequest.current
-
+    setQuery(value) // Update input immediately
+    
     startTransition(async () => {
+      // Fetch and update results
       const data = await fetchResults(value)
-      // Transitions do not cancel or order network requests.
-      if (requestId === latestRequest.current) setResults(data)
+      setResults(data)
     })
   }
 
@@ -70,10 +68,8 @@ function SearchResults() {
 **Benefits:**
 
 - **Automatic pending state**: No need to manually manage `setIsLoading(true/false)`
-- **Pending state**: React tracks the Action while it is in progress
-- **Responsiveness**: Non-urgent rendering work can be interrupted
-- **Ordering remains explicit**: Use `useActionState` for ordered Actions, or abort/version request-style work yourself
-
-Handle errors inside the Action or with the framework's error boundary. Do not rely on a Transition to swallow an async error.
+- **Error resilience**: Pending state correctly resets even if the transition throws
+- **Better responsiveness**: Keeps the UI responsive during updates
+- **Interrupt handling**: New transitions automatically cancel pending ones
 
 Reference: [useTransition](https://react.dev/reference/react/useTransition)

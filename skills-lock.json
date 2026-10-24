@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "apple-design": {
+      "source": "dickwu/apple-design-skill",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "59bd78ead9b336f6cf823587589fc86727cbe0acec8c7c4a6b1d9e39578fd486"
+    },
     "feature-arch": {
       "source": "Pythoughts-labs/react-frontend-skills",
       "sourceType": "github",
@@ -92,10 +98,10 @@
       "computedHash": "400ced6cdb745750894ab82f1157c6de3e4c517ce7e21595856a6b7d8ed54cb3"
     },
     "vercel-react-best-practices": {
-      "source": "Pythoughts-labs/react-frontend-skills",
+      "source": "vercel-labs/agent-skills",
       "sourceType": "github",
-      "skillPath": "skills/vercel-react-best-practices/SKILL.md",
-      "computedHash": "87f24e11caae52161d9a76fa3d37a504697cbc53cad8031e3f039c7d83b45727"
+      "skillPath": "skills/react-best-practices/SKILL.md",
+      "computedHash": "3219a1944e404ffc14d1d9d6aef6dd2e3855b81387ee0a044ccbfe14d34c2357"
     },
     "vitest": {
       "source": "Pythoughts-labs/react-frontend-skills",
@@ -104,10 +110,10 @@
       "computedHash": "03890f969939841f3c57f2871a0e54032c4ec794d8f8dcee8f1fcd87bb76e61e"
     },
     "web-design-guidelines": {
-      "source": "Pythoughts-labs/react-frontend-skills",
+      "source": "vercel-labs/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/web-design-guidelines/SKILL.md",
-      "computedHash": "678d5289ade8f7a1b4ebf3f02d884cced6c2615b16d89c635453562e3f51035f"
+      "computedHash": "a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a"
     },
     "zod": {
       "source": "Pythoughts-labs/react-frontend-skills",

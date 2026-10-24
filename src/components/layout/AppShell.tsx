@@ -1,9 +1,12 @@
-import { useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { ChevronDown, LogOut, Menu, User as UserIcon, X } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import { filterNavItems, navItems } from "@/config/navigation";
+import { getAssetInspections } from "@/lib/api";
+import { inspectionAdminId } from "@/lib/asset-inspections";
+import { useAutoRefresh } from "@/hooks/use-auto-refresh";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -14,7 +17,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({
+  onNavigate,
+  pendingApprovals,
+}: {
+  onNavigate?: () => void;
+  pendingApprovals: number;
+}) {
   const { user } = useAuth();
   const location = useLocation();
   const permissionNames = user?.role?.permissions.map((p) => p.name) ?? [];
@@ -55,6 +64,16 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               )}
               <Icon className={cn("size-4", active ? "text-primary-hover" : "text-muted-foreground")} />
               {item.label}
+
+              {item.to === "/asset-inspections" && pendingApprovals > 0 && (
+                <span
+                  id="pending-approvals-badge"
+                  className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground"
+                  title={`${pendingApprovals} inspection(s) waiting for your signature`}
+                >
+                  {pendingApprovals}
+                </span>
+              )}
             </NavLink>
           );
         })}
@@ -76,6 +95,27 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Inspections waiting for the signed in user to sign them as admin.
+  const [pendingApprovals, setPendingApprovals] = useState(0);
+
+  const refreshPendingApprovals = useCallback(async () => {
+    const response = await getAssetInspections();
+
+    const count = response.data.filter(
+      (inspection) =>
+        inspection.approval_status === "pending_admin" &&
+        inspectionAdminId(inspection) === user?.id
+    ).length;
+
+    setPendingApprovals((current) => (current === count ? current : count));
+  }, [user?.id]);
+
+  useEffect(() => {
+    void refreshPendingApprovals();
+  }, [refreshPendingApprovals]);
+
+  useAutoRefresh(refreshPendingApprovals);
+
   const currentLabel =
     navItems.find((item) =>
       item.to === "/"
@@ -87,7 +127,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background">
       {/* Desktop sidebar */}
       <aside id="app-sidebar" className="fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-border/60 bg-muted md:block">
-        <SidebarContent />
+        <SidebarContent pendingApprovals={pendingApprovals} />
       </aside>
 
       {/* Mobile sidebar overlay */}
@@ -106,7 +146,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
             >
               <X className="size-4" />
             </button>
-            <SidebarContent onNavigate={() => setMobileOpen(false)} />
+            <SidebarContent
+              onNavigate={() => setMobileOpen(false)}
+              pendingApprovals={pendingApprovals}
+            />
           </aside>
         </div>
       )}
