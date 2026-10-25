@@ -29,6 +29,95 @@
   --status-indoor-text: #92400e;
   --status-outdoor-bg: #e4eaf3;
   --status-outdoor-text: #3e5370;
+
+  /* Chart palette — brand green + harmonious set */
+  --chart-1: #78a03f;  /* brand green (primary) */
+  --chart-2: #3b82f6;  /* blue */
+  --chart-3: #f59e0b;  /* amber */
+  --chart-4: #a855f7;  /* violet */
+  --chart-5: #f43f5e;  /* rose */
+}
+
+.dark {
+  --background: #14181e;
+  --foreground: #f1f5f9;
+  --card: #1b212a;
+  --card-foreground: #f1f5f9;
+  --popover: #1b212a;
+  --popover-foreground: #f1f5f9;
+  --primary: #8fc647;
+  --primary-hover: #a3d65a;
+  --primary-foreground: #14181e;
+  --secondary: #232b36;
+  --secondary-foreground: #f1f5f9;
+  --muted: #232b36;
+  --muted-foreground: #94a3b8;
+  --accent: #232b36;
+  --accent-foreground: #f1f5f9;
+  --destructive: #f87171;
+  --destructive-foreground: #14181e;
+  --border: #2d3748;
+  --input: #2d3748;
+  --ring: #8fc647;
+
+  --status-solved-bg: #1e3a1e;
+  --status-solved-text: #a3d65a;
+  --status-indoor-bg: #3d2e1a;
+  --status-indoor-text: #fbbf24;
+  --status-outdoor-bg: #1e2d3d;
+  --status-outdoor-text: #60a5fa;
+
+  /* Chart palette — brand green + harmonious set (dark mode) */
+  --chart-1: #8fc647;  /* brand green (primary) */
+  --chart-2: #60a5fa;  /* blue */
+  --chart-3: #fbbf24;  /* amber */
+  --chart-4: #c084fc;  /* violet */
+  --chart-5: #fb7185;  /* rose */
+
+  --status-pending-admin-bg: #3d2e1a;
+  --status-pending-admin-text: #fbbf24;
+  --status-returned-bg: #3d1a1a;
+  --status-returned-text: #f87171;
+  --status-completed-bg: #1e3a1e;
+  --status-completed-text: #8fc647;
+  --status-solved-bg: #1e3a1e;
+  --status-solved-text: #8fc647;
+  --status-indoor-repairing-bg: #1e2d3d;
+  --status-indoor-repairing-text: #60a5fa;
+  --status-outdoor-repairing-bg: #2a1e3d;
+  --status-outdoor-repairing-text: #c084fc;
+  --status-handover-bg: #1e2d3d;
+  --status-handover-text: #60a5fa;
+  --status-received-bg: #1e3a1e;
+  --status-received-text: #8fc647;
+  --status-new-purchase-bg: #2a1e3d;
+  --status-new-purchase-text: #c084fc;
+  --status-others-bg: #2d3748;
+  --status-others-text: #94a3b8;
+}
+
+/* Light mode status colors (used by STATUS_COLORS via CSS variables) */
+:root {
+  --status-pending-admin-bg: #fef3c7;
+  --status-pending-admin-text: #92400e;
+  --status-returned-bg: #fee2e2;
+  --status-returned-text: #dc2626;
+  --status-completed-bg: #e9f0dc;
+  --status-completed-text: #3f5a1b;
+  --status-solved-bg: #e9f0dc;
+  --status-solved-text: #3f5a1b;
+  --status-indoor-repairing-bg: #dbeafe;
+  --status-indoor-repairing-text: #3b82f6;
+  --status-outdoor-repairing-bg: #f3e8ff;
+  --status-outdoor-repairing-text: #a855f7;
+  --status-handover-bg: #dbeafe;
+  --status-handover-text: #3b82f6;
+  --status-received-bg: #e9f0dc;
+  --status-received-text: #3f5a1b;
+  --status-new-purchase-bg: #f3e8ff;
+  --status-new-purchase-text: #a855f7;
+  --status-others-bg: #f0eee6;
+  --status-others-text: #6b7280;
 }
 
 @theme inline {
@@ -58,6 +147,29 @@
   --color-status-indoor-text: var(--status-indoor-text);
   --color-status-outdoor-bg: var(--status-outdoor-bg);
   --color-status-outdoor-text: var(--status-outdoor-text);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-status-pending-admin-bg: var(--status-pending-admin-bg);
+  --color-status-pending-admin-text: var(--status-pending-admin-text);
+  --color-status-returned-bg: var(--status-returned-bg);
+  --color-status-returned-text: var(--status-returned-text);
+  --color-status-completed-bg: var(--status-completed-bg);
+  --color-status-completed-text: var(--status-completed-text);
+  --color-status-indoor-repairing-bg: var(--status-indoor-repairing-bg);
+  --color-status-indoor-repairing-text: var(--status-indoor-repairing-text);
+  --color-status-outdoor-repairing-bg: var(--status-outdoor-repairing-bg);
+  --color-status-outdoor-repairing-text: var(--status-outdoor-repairing-text);
+  --color-status-handover-bg: var(--status-handover-bg);
+  --color-status-handover-text: var(--status-handover-text);
+  --color-status-received-bg: var(--status-received-bg);
+  --color-status-received-text: var(--status-received-text);
+  --color-status-new-purchase-bg: var(--status-new-purchase-bg);
+  --color-status-new-purchase-text: var(--status-new-purchase-text);
+  --color-status-others-bg: var(--status-others-bg);
+  --color-status-others-text: var(--status-others-text);
   --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
