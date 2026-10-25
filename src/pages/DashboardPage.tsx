@@ -54,19 +54,23 @@ export default function DashboardPage() {
     resetFilters,
   } = useDashboardFilters()
 
-  // Derive scope from the filters (URL is the source of truth).
-  const [scope, setScope] = useState<DashboardScope>(filters.scope)
+  // The URL is the source of truth for scope; no mirror state is needed.
+  const scope = filters.scope
 
-  useEffect(() => {
-    setScope(filters.scope)
-  }, [filters.scope])
-
-  // Clear people filters when the scope changes.
+  // Clear people filters when the scope changes back to "mine". Guarded so
+  // it runs once per real scope change and only fires updateFilters when
+  // there is something to clear (each fire bumps version = one refetch).
   const prevScopeRef = useRef<DashboardScope>(scope)
   useEffect(() => {
-    if (prevScopeRef.current !== scope) {
-      prevScopeRef.current = scope
-      if (scope === "mine") {
+    if (prevScopeRef.current === scope) return
+    prevScopeRef.current = scope
+    if (scope === "mine") {
+      const hasPeopleFilters =
+        filters.created_by !== "" ||
+        filters.assigned_to !== "" ||
+        filters.prepared_by !== "" ||
+        filters.admin_user !== ""
+      if (hasPeopleFilters) {
         updateFilters({
           created_by: "",
           assigned_to: "",
@@ -75,22 +79,40 @@ export default function DashboardPage() {
         })
       }
     }
-  }, [scope, updateFilters])
+  }, [
+    scope,
+    filters.created_by,
+    filters.assigned_to,
+    filters.prepared_by,
+    filters.admin_user,
+    updateFilters,
+  ])
 
-  // Bump the refresh key whenever the URL filters change so sections refetch
-  // silently (keeping old data visible while dimmed).
+  // Translate version bumps (filters/tab changed) into refresh-key bumps
+  // for the sections. Skipped while the version is unchanged, so mount and
+  // StrictMode's double-invoked mount effect never trigger a refetch.
   const [refreshKey, setRefreshKey] = useState(0)
+  const lastVersionRef = useRef(version)
   useEffect(() => {
+    if (lastVersionRef.current === version) return
+    lastVersionRef.current = version
     setRefreshKey((k) => k + 1)
   }, [version])
 
   const [filterOpen, setFilterOpen] = useState(false)
 
+  // Exactly one tick every 30 s while the page is visible. No fetch on
+  // focus/visibility change and no fetch when the interval is (re)enabled —
+  // paused only while the filter Sheet is open.
   useAutoRefresh(
     () => {
       setRefreshKey((k) => k + 1)
     },
-    { intervalMs: AUTO_REFRESH_INTERVAL_MS, enabled: !filterOpen }
+    {
+      intervalMs: AUTO_REFRESH_INTERVAL_MS,
+      enabled: !filterOpen,
+      refreshOnFocus: false,
+    }
   )
 
   return (
@@ -121,7 +143,6 @@ export default function DashboardPage() {
           value={scope}
           onValueChange={(value) => {
             const next = value as DashboardScope
-            setScope(next)
             updateFilters({ scope: next })
           }}
         >

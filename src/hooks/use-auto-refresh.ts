@@ -5,6 +5,12 @@ export type AutoRefreshOptions = {
   intervalMs?: number;
   /** Set to false to pause refreshing, e.g. while a dialog is open. */
   enabled?: boolean;
+  /**
+   * Also run the callback when the window regains focus or becomes visible
+   * again. On for live pages by default; pass false when the caller needs a
+   * strictly fixed request schedule (load + interval + real input changes).
+   */
+  refreshOnFocus?: boolean;
 };
 
 const DEFAULT_INTERVAL_MS = 10_000;
@@ -13,15 +19,20 @@ const DEFAULT_INTERVAL_MS = 10_000;
  * Polls `callback` on an interval while the tab is visible.
  *
  * The latest callback is kept in a ref, so re-renders never restart the
- * timer. A tick is skipped while the previous call is still running and
- * errors are swallowed — a background refresh must never break the page or
- * pop an error at the user.
+ * timer or send extra requests. A tick is skipped while the previous call
+ * is still running, while the tab is hidden, and — when `refreshOnFocus` is
+ * false — on window focus. Errors are swallowed: a background refresh must
+ * never break the page or pop an error at the user.
  */
 export function useAutoRefresh(
   callback: () => void | Promise<void>,
   options: AutoRefreshOptions = {}
 ): void {
-  const { intervalMs = DEFAULT_INTERVAL_MS, enabled = true } = options;
+  const {
+    intervalMs = DEFAULT_INTERVAL_MS,
+    enabled = true,
+    refreshOnFocus = true,
+  } = options;
 
   const callbackRef = useRef(callback);
   const runningRef = useRef(false);
@@ -62,13 +73,17 @@ export function useAutoRefresh(
 
     const timer = window.setInterval(tick, intervalMs);
 
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("focus", onFocus);
+    if (refreshOnFocus) {
+      document.addEventListener("visibilitychange", onVisibilityChange);
+      window.addEventListener("focus", onFocus);
+    }
 
     return () => {
       window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("focus", onFocus);
+      if (refreshOnFocus) {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+        window.removeEventListener("focus", onFocus);
+      }
     };
-  }, [enabled, intervalMs]);
+  }, [enabled, intervalMs, refreshOnFocus]);
 }

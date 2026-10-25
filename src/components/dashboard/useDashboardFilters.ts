@@ -60,6 +60,29 @@ function toSearchParams(f: DashboardFilters): URLSearchParams {
   return p
 }
 
+/** Canonical representation of a filter set, used for equality checks only. */
+function serializeFilters(f: DashboardFilters): string {
+  return [
+    f.scope,
+    f.preset,
+    f.from,
+    f.to,
+    f.department_id,
+    f.item_type_id,
+    f.status,
+    f.asset_status,
+    f.approval_status,
+    f.created_by,
+    f.assigned_to,
+    f.prepared_by,
+    f.admin_user,
+  ].join("|")
+}
+
+function currentQuery(): string {
+  return window.location.search.replace(/^\?/, "")
+}
+
 export function useDashboardFilters() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -67,26 +90,46 @@ export function useDashboardFilters() {
   const [filters, setFilters] = useState(() => parseFilters(searchParams))
   const [version, setVersion] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Mirrors `filters` so event handlers and the debounce timer always read
+  // the latest value without becoming effect dependencies.
+  const filtersRef = useRef(filters)
 
   // Re-hydrate from the URL when it changes (back/forward, direct link).
+  // The equality check keeps this from firing on mount (state was parsed
+  // from the same URL) and from re-firing after updateFilters' own debounced
+  // navigate — otherwise version would bump twice per filter change and
+  // every section would refetch twice.
   useEffect(() => {
     const next = parseFilters(searchParams)
+    if (serializeFilters(next) === serializeFilters(filtersRef.current)) return
+    filtersRef.current = next
     setFilters(next)
     setVersion((v) => v + 1)
   }, [searchParams])
 
   const updateFilters = useCallback(
     (next: Partial<DashboardFilters>) => {
-      const updated = { ...filters, ...next }
+      const updated = { ...filtersRef.current, ...next }
+      // Nothing actually changed: no re-render, no refetch, no URL write.
+      if (serializeFilters(updated) === serializeFilters(filtersRef.current)) {
+        return
+      }
+
+      filtersRef.current = updated
       setFilters(updated)
 
       if (timerRef.current) clearTimeout(timerRef.current)
       timerRef.current = setTimeout(() => {
-        navigate(`?${toSearchParams(updated).toString()}`, { replace: true })
+        timerRef.current = null
+        // Write to the URL only when the serialized query differs.
+        const query = toSearchParams(updated).toString()
+        if (query !== currentQuery()) {
+          navigate(`?${query}`, { replace: true })
+        }
         setVersion((v) => v + 1)
       }, DEBOUNCE_MS)
     },
-    [filters, navigate]
+    [navigate]
   )
 
   const activeCount = useMemo(
@@ -111,12 +154,25 @@ export function useDashboardFilters() {
   )
 
   const resetFilters = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current)
+    if (timerRef.current) {
+      clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
     const empty: DashboardFilters = { ...EMPTY_FILTERS, preset: "custom" }
+    if (serializeFilters(empty) === serializeFilters(filtersRef.current)) return
+    filtersRef.current = empty
     setFilters(empty)
-    navigate("?", { replace: true })
+    if (currentQuery() !== "") navigate("?", { replace: true })
     setVersion((v) => v + 1)
   }, [navigate])
+
+  // Stop the pending URL write when the page unmounts.
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    },
+    []
+  )
 
   return {
     filters,
