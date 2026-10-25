@@ -8,7 +8,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { hasPermission } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { useDashboardSection } from "./useDashboardSection";
@@ -93,21 +93,6 @@ export function SupportLogsSection({
 
   const avgHours = summary?.avg_resolution_hours ?? null;
 
-  // Section header
-  const sectionHeader = (
-    <div className="flex items-start gap-3 mb-6">
-      <div className="inline-flex items-center justify-center size-10 rounded-xl bg-primary/10 text-primary shrink-0" aria-hidden="true">
-        <TicketCheck className="size-5" />
-      </div>
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">Support logs</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Track ticket volume, status distribution, and resolution trends across your team.
-        </p>
-      </div>
-    </div>
-  );
-
   return (
     <section id="support-logs-section" aria-label="Support logs dashboard">
       {!enabled && (
@@ -118,10 +103,10 @@ export function SupportLogsSection({
 
       {enabled && (
         <>
-          {sectionHeader}
+          {/* {sectionHeader} */}
 
-          {/* KPI Cards */}
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-6">
+          {/* KPI Cards ---- keeping these commented for now */}
+          {/* <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-6">
             <KpiCard
               title="Total"
               value={summary?.total ?? 0}
@@ -158,81 +143,66 @@ export function SupportLogsSection({
               accent="violet"
               aria-label="Average resolution time"
             />
-          </div>
+          </div> */}
 
           {/* Charts */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
-            <Card className="lg:col-span-3 min-h-[280px]">
-              <CardHeader>
-                <CardTitle className="text-base">Logs over time</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4">
-                <TrendChart
-                  data={trend}
-                  title="Logs per day"
-                  colorIndex={0}
-                  from={filters.from}
-                  to={filters.to}
-                />
-              </CardContent>
-            </Card>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 mb-6">
+          <Card className="lg:col-span-2 min-h-[280px]">
+            <CardContent className="p-4">
+              <TrendChart
+                data={trend}
+                title="Logs per day"
+                colorIndex={0}
+                from={filters.from}
+                to={filters.to}
+              />
+            </CardContent>
+          </Card>
 
-            <Card className="min-h-[280px]">
-              <CardHeader>
-                <CardTitle className="text-base">By status</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4">
-                <DonutChart
-                  data={byStatus}
-                  title="Status breakdown"
-                  total={summary?.total}
-                  unit="tickets"
-                />
-              </CardContent>
-            </Card>
+          <Card className="min-h-[280px]">
+            <CardContent className="p-4">
+              <DonutChart
+                data={byStatus}
+                title="Status breakdown"
+                total={summary?.total}
+                unit="tickets"
+              />
+            </CardContent>
+          </Card>
 
-            <Card className="min-h-[280px]">
-              <CardHeader>
-                <CardTitle className="text-base">By department</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4">
-                <CategoryBarChart
-                  data={byDepartmentChart}
-                  title="Logs by department"
-                  colorIndex={1}
-                  unit="tickets"
-                />
-              </CardContent>
-            </Card>
+          <Card className="min-h-[280px]">
+            <CardContent className="p-4">
+              <CategoryBarChart
+                data={byDepartmentChart}
+                title="Logs by department"
+                colorIndex={1}
+                unit="tickets"
+              />
+            </CardContent>
+          </Card>
 
-            <Card className="min-h-[280px]">
-              <CardHeader>
-                <CardTitle className="text-base">By item type</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4">
-                <CategoryBarChart
-                  data={byItemTypeChart}
-                  title="Logs by item type"
-                  colorIndex={2}
-                  unit="tickets"
-                />
-              </CardContent>
-            </Card>
+          <Card className="min-h-[280px]">
+            <CardContent className="p-4">
+              <CategoryBarChart
+                data={byItemTypeChart}
+                title="Logs by item type"
+                colorIndex={2}
+                unit="tickets"
+              />
+            </CardContent>
+          </Card>
 
-            <Card className="min-h-[280px]">
-              <CardHeader>
-                <CardTitle className="text-base">By issue type</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4">
-                <CategoryBarChart
-                  data={byIssueTypeChart}
-                  title="Logs by issue type"
-                  colorIndex={3}
-                  unit="tickets"
-                />
-              </CardContent>
-            </Card>
-          </div>
+          <Card className="min-h-[280px]">
+            <CardContent className="p-4">
+              <CategoryBarChart
+                data={byIssueTypeChart}
+                title="Logs by issue type"
+                colorIndex={3}
+                unit="tickets"
+              />
+            </CardContent>
+          </Card>
+        </div>
 
           {canSeePeople && (
             <div className="grid gap-4 md:grid-cols-2 mb-6">

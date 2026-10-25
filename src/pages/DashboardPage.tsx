@@ -116,29 +116,24 @@ export default function DashboardPage() {
   )
 
   return (
+    
     <div id="dashboard-page" className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">Dashboard</h2>
-          <p className="text-sm text-muted-foreground">
-            Filtered support log and asset inspection activity.
-          </p>
-        </div>
-
+      
         <div className="flex items-center gap-2">
-          <Button
+          {/* <Button
             id="btn-refresh-dashboard"
             variant="outline"
             size="sm"
             onClick={() => setRefreshKey((k) => k + 1)}
           >
             Refresh
-          </Button>
+          </Button> */}
         </div>
       </div>
 
       {/* Scope tabs (permission-based). Hidden when only "Mine" is visible. */}
-      {hasMultipleTabs && (
+      {/* {hasMultipleTabs && (
         <Tabs
           value={scope}
           onValueChange={(value) => {
@@ -159,7 +154,7 @@ export default function DashboardPage() {
             ))}
           </TabsList>
         </Tabs>
-      )}
+      )} */}
 
       <FilterBar
         scope={scope}

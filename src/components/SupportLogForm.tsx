@@ -40,6 +40,7 @@ type SupportLogFormProps = {
 
 export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFormProps) {
   const { user: authUser } = useAuth();
+  console.log("authUser", authUser);
   const [date, setDate] = useState(today);
   const [initiator, setInitiator] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
@@ -235,9 +236,11 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
             disabled={submitting}
           >
             <option value="">Select status</option>
+            <option value="in_progress">In Progress</option>
             <option value="indoor_repairing">Indoor Repairing</option>
-            <option value="outdoor_repairing">Outdoor Repairing</option>
-            <option value="solved">Solved</option>
+            <option value="outdoor_repairing">Outdoor Repairing</option>  
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
           </Select>
           {fieldErrors.status && (
             <p className="text-xs text-destructive">{fieldErrors.status}</p>

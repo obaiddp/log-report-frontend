@@ -418,7 +418,7 @@ export function FilterBar({
   return (
     <>
       {/* Desktop: sticky inline filter bar */}
-      {!isMobile && (
+      {/* {!isMobile && (
         <Card className="sticky top-0 z-20 border-b border-border/60 bg-background/95 backdrop-blur-sm">
           <CardContent className="px-4 py-4 md:px-6 lg:px-8">
             <div className="flex flex-col lg:flex-row lg:items-center gap-4">
@@ -508,10 +508,10 @@ export function FilterBar({
             </div>
           </CardContent>
         </Card>
-      )}
+      )} */}
 
       {/* Mobile: Filters button opens a Sheet */}
-      {isMobile && (
+      {/* {isMobile && (
         <div className="flex items-center gap-2">
           <Sheet open={sheetOpen} onOpenChange={handleOpenChange}>
             <SheetTrigger asChild>
@@ -564,7 +564,7 @@ export function FilterBar({
             Reset filters
           </Button>
         </div>
-      )}
+      )} */}
     </>
   )
 }

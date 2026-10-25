@@ -105,20 +105,6 @@ export function AssetInspectionsSection({
   const returnedToMe = summary?.returned_to_me ?? 0;
   const avgHours = summary?.avg_approval_hours ?? null;
 
-  // Section header
-  const sectionHeader = (
-    <div className="flex items-start gap-3 mb-6">
-      <div className="inline-flex items-center justify-center size-10 rounded-xl bg-blue-500/10 text-blue-500 shrink-0" aria-hidden="true">
-        <ClipboardCheck className="size-5" />
-      </div>
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">Asset inspections</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          Monitor inspection pipeline, approval flow, and item status distribution.
-        </p>
-      </div>
-    </div>
-  );
 
   return (
     <section id="asset-inspections-section" aria-label="Asset inspections dashboard">
@@ -130,7 +116,6 @@ export function AssetInspectionsSection({
 
       {enabled && (
         <>
-          {sectionHeader}
 
           {/* KPI Cards - First row */}
           <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 mb-6">
@@ -173,11 +158,8 @@ export function AssetInspectionsSection({
           </div>
 
           {/* Charts */}
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
-            <Card className="lg:col-span-3 min-h-[280px]">
-              <CardHeader>
-                <CardTitle className="text-base">Inspections over time</CardTitle>
-              </CardHeader>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 mb-6">
+            <Card className="lg:col-span-2 min-h-[280px]">
               <CardContent className="p-4">
                 <TrendChart
                   data={trend}
@@ -190,9 +172,7 @@ export function AssetInspectionsSection({
             </Card>
 
             <Card className="min-h-[280px]">
-              <CardHeader>
-                <CardTitle className="text-base">By approval status</CardTitle>
-              </CardHeader>
+              
               <CardContent className="p-4">
                 <DonutChart
                   data={byApprovalStatus}
@@ -204,9 +184,6 @@ export function AssetInspectionsSection({
             </Card>
 
             <Card className="min-h-[280px]">
-              <CardHeader>
-                <CardTitle className="text-base">By item status</CardTitle>
-              </CardHeader>
               <CardContent className="p-4">
                 <DonutChart
                   data={byItemStatus}
@@ -218,9 +195,6 @@ export function AssetInspectionsSection({
             </Card>
 
             <Card className="min-h-[280px]">
-              <CardHeader>
-                <CardTitle className="text-base">By department</CardTitle>
-              </CardHeader>
               <CardContent className="p-4">
                 <CategoryBarChart
                   data={byDepartmentChart}
@@ -232,9 +206,6 @@ export function AssetInspectionsSection({
             </Card>
 
             <Card className="min-h-[280px]">
-              <CardHeader>
-                <CardTitle className="text-base">By item type</CardTitle>
-              </CardHeader>
               <CardContent className="p-4">
                 <CategoryBarChart
                   data={byItemTypeChart}

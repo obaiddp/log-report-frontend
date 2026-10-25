@@ -380,9 +380,11 @@ export function deleteItem(id: number) {
 // ---------- Support Logs / Log Report ----------
 
 export type SupportLogStatus =
+  | 'in_progress'
   | "indoor_repairing"
   | "outdoor_repairing"
-  | "solved";
+  | "resolved"
+  | "closed";      
 
 export type SupportLog = {
   id: number;
