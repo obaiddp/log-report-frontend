@@ -184,14 +184,33 @@ export default function SupportLogsPage() {
 
   // UI scoping only — the API currently returns all logs to every
   // authenticated user. The backend must enforce this server-side.
+  // const visibleLogs = useMemo(() => {
+  //   if ( !user) {
+  //     return supportLogs; 
+  //   }
+    
+  //   if (user.role?.name === "super_admin") {
+  //     return supportLogs;
+  //   }
+    
+  //   return supportLogs.filter(
+  //     (log) => log.created_by === user.id || log.assigned_to === user.id
+  //   );
+  // }, [supportLogs, user]);
+
   const visibleLogs = useMemo(() => {
-    if ( !user) {
-      return supportLogs;
-    }
-    return supportLogs.filter(
-      (log) => log.created_by === user.id || log.assigned_to === user.id
-    );
-  }, [supportLogs, user]);
+  if (!user) {
+    return supportLogs;
+  }
+
+  if (user.role?.name === "super_admin") {
+    return supportLogs;
+  }
+
+  return supportLogs.filter(
+    (log) => log.created_by === user.id || log.assigned_to === user.id
+  );
+}, [supportLogs, user]);
 
   const filteredLogs = visibleLogs.filter((log) => {
     const searchText = search.toLowerCase();
@@ -214,9 +233,6 @@ export default function SupportLogsPage() {
       <div id="support-logs-header" className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Support Logs</h2>
-          <p className="text-sm text-muted-foreground">
-            Track and update indoor/outdoor repair tickets.
-          </p>
         </div>
 
         <div className="flex items-center gap-2">

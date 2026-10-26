@@ -7,7 +7,7 @@ export type DashboardScope = "mine" | "department" | "all"
 
 export interface DashboardFilters {
   scope: DashboardScope
-  preset: "last7" | "last30" | "thismonth" | "custom"
+  preset: "last7" | "thismonth" | "previousmonth" | "thisyear" | "previousyear" | "custom"
   from: string
   to: string
   department_id: string
@@ -47,8 +47,10 @@ export const SCOPE_OPTIONS: Array<{ value: DashboardScope; label: string }> = [
 
 export const PRESET_OPTIONS: Array<{ value: DashboardFilters["preset"]; label: string }> = [
   { value: "last7", label: "Last 7 days" },
-  { value: "last30", label: "Last 30 days" },
   { value: "thismonth", label: "This month" },
+  { value: "previousmonth", label: "Previous month" },
+  { value: "thisyear", label: "This year" },
+  { value: "previousyear", label: "Previous year" },
   { value: "custom", label: "Custom" },
 ]
 
@@ -72,16 +74,45 @@ export function presetRange(
   today: Date = new Date()
 ): { from: string; to: string } {
   const to = toLocalDateString(today)
+
   switch (preset) {
     case "last7":
       return { from: toLocalDateString(addDays(today, -6)), to }
-    case "last30":
-      return { from: toLocalDateString(addDays(today, -29)), to }
+
     case "thismonth":
       return {
-        from: toLocalDateString(new Date(today.getFullYear(), today.getMonth(), 1)),
+        from: toLocalDateString(
+          new Date(today.getFullYear(), today.getMonth(), 1)
+        ),
         to,
       }
+
+    case "previousmonth":
+      return {
+        from: toLocalDateString(
+          new Date(today.getFullYear(), today.getMonth() - 1, 1)
+        ),
+        to: toLocalDateString(
+          new Date(today.getFullYear(), today.getMonth(), 0)
+        ),
+      }
+
+    case "thisyear":
+      return {
+        from: toLocalDateString(new Date(today.getFullYear(), 0, 1)),
+        to,
+      }
+
+    case "previousyear":
+      return {
+        from: toLocalDateString(
+          new Date(today.getFullYear() - 1, 0, 1)
+        ),
+        to: toLocalDateString(
+          new Date(today.getFullYear() - 1, 11, 31)
+        ),
+      }
+
     case "custom":
     default:
       return { from: "", to }
@@ -89,22 +120,53 @@ export function presetRange(
 }
 
 /** Detect which preset (if any) matches the given from/to. */
-export function detectPreset(from: string, to: string): DashboardFilters["preset"] {
-  for (const preset of ["last7", "last30", "thismonth"] as const) {
-    const { from: f, to: t } = presetRange(preset)
-    if (from === f && to === t) return preset
+export function detectPreset(
+  from: string,
+  to: string
+): DashboardFilters["preset"] {
+  const presets = [
+    "last7",
+    "thismonth",
+    "previousmonth",
+    "thisyear",
+    "previousyear",
+  ] as const
+
+  for (const preset of presets) {
+    const range = presetRange(preset)
+
+    if (from === range.from && to === range.to) {
+      return preset
+    }
   }
+
   return "custom"
 }
 
-export function humanizeSupportLogStatus(status: SupportLogStatus): string {
+/**
+ * Human label for a support log status. Never returns undefined: rows from
+ * the dashboard can carry new or null labels, and a chart label must never
+ * render as "undefined".
+ */
+export function humanizeSupportLogStatus(
+  status: SupportLogStatus | string | null | undefined
+): string {
+  if (!status) return "Unknown"
   switch (status) {
+    case "in_progress":
+      return "In progress"
     case "indoor_repairing":
       return "Indoor Repairing"
     case "outdoor_repairing":
       return "Outdoor Repairing"
-    case "solved":
-      return "Solved"
+    case "resolved":
+      return "Resolved"
+    case "closed":
+      return "Closed"
+    default:
+      return String(status)
+        .replace(/[_-]+/g, " ")
+        .replace(/\b\w/g, (char) => char.toUpperCase())
   }
 }
 
@@ -126,7 +188,11 @@ export function humanizeAssetItemStatus(status: string | null | undefined): stri
   }
 }
 
-export function humanizeApprovalStatus(status: AssetApprovalStatus): string {
+/** Human label for an approval status. Never returns undefined. */
+export function humanizeApprovalStatus(
+  status: AssetApprovalStatus | string | null | undefined
+): string {
+  if (!status) return "Unknown"
   switch (status) {
     case "pending_admin":
       return "Pending admin"
@@ -134,6 +200,10 @@ export function humanizeApprovalStatus(status: AssetApprovalStatus): string {
       return "Completed"
     case "returned":
       return "Returned"
+    default:
+      return String(status)
+        .replace(/[_-]+/g, " ")
+        .replace(/\b\w/g, (char) => char.toUpperCase())
   }
 }
 

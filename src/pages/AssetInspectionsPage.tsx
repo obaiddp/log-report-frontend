@@ -383,8 +383,8 @@ export default function AssetInspectionsPage() {
                   <TableHead>Person</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Item</TableHead>
-                  <TableHead>Tag / serial</TableHead>
-                  <TableHead>Problem</TableHead>
+                  <TableHead>Serial</TableHead>
+                  {/* <TableHead>Problem</TableHead> */}
                   <TableHead>Status</TableHead>
                   <TableHead>Approval</TableHead>
                   <TableHead>Prepared by</TableHead>
@@ -426,11 +426,11 @@ export default function AssetInspectionsPage() {
                           {orDash(inspection.serial_number)}
                         </div>
                       </TableCell>
-                      <TableCell className="max-w-64">
+                      {/* <TableCell className="max-w-64">
                         <span className="line-clamp-2">
                           {orDash(inspection.item_problem)}
                         </span>
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell>
                         {inspection.status ? (
                           <Badge variant="outline">{formatInspectionStatus(inspection.status)}</Badge>

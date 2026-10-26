@@ -557,8 +557,10 @@ export function SectionFilterBar({
           aria-label="Date range preset"
         >
           <option value="last7">Last 7 days</option>
-          <option value="last30">Last 30 days</option>
           <option value="thismonth">This month</option>
+          <option value="previousmonth">Previous month</option>
+          <option value="thisyear">This year</option>
+          <option value="previousyear">Previous year</option>
           <option value="custom">Custom</option>
         </Select>
 

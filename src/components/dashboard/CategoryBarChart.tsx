@@ -11,7 +11,6 @@ import {
 } from "recharts";
 
 import { fillColorFor } from "./chart-colors";
-import { labelWithCount } from "./types";
 
 interface CategoryBarChartProps {
   data: Array<{ name: string; value: number }>;
@@ -22,6 +21,15 @@ interface CategoryBarChartProps {
   unit?: string;
 }
 
+/** Category names longer than this are truncated (full name in tooltip). */
+const MAX_TICK_CHARS = 18;
+
+function truncateTick(value: unknown): string {
+  const text = String(value ?? "");
+  if (text.length <= MAX_TICK_CHARS) return text;
+  return `${text.slice(0, MAX_TICK_CHARS - 1).trimEnd()}…`;
+}
+
 function formatLabel(value: unknown, unit: string): string {
   if (value === undefined || value === null || value === false) return "";
   return `${Number(value)}${unit ? ` ${unit}` : ""}`;
@@ -30,13 +38,30 @@ function formatLabel(value: unknown, unit: string): string {
 export function CategoryBarChart({
   data,
   title,
-  height = 280,
+  height = 240,
   colorIndex = 0,
   unit = "",
 }: CategoryBarChartProps) {
   const hasData = data.length > 0 && data.some((d) => d.value > 0);
   const color = fillColorFor("", colorIndex);
   const sorted = [...data].sort((a, b) => b.value - a.value);
+
+  // The chart height follows the number of bars instead of a fixed box:
+  // two bars no longer float in 280px of empty space, and the chart never
+  // grows past the requested height (a laptop viewport stays readable).
+  const adaptiveHeight = Math.min(
+    Math.max(sorted.length * 44 + 16, 96),
+    height
+  );
+
+  // The name gutter is sized from the longest (truncated) category name
+  // instead of a fixed 160px, so short names like "Hardware" don't waste
+  // half of the card width.
+  const longestTick = sorted.reduce(
+    (max, d) => Math.max(max, truncateTick(d.name).length),
+    0
+  );
+  const yAxisWidth = Math.min(160, Math.max(72, longestTick * 6.6 + 14));
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -45,7 +70,7 @@ export function CategoryBarChart({
         <div className="bg-card border border-border p-2 rounded-lg shadow-sm text-sm">
           <p className="text-muted-foreground">{String(name ?? "Unknown")}</p>
           <p className="font-semibold text-foreground">
-            {labelWithCount(null, Number(value))}
+            {formatLabel(value, unit)}
           </p>
         </div>
       );
@@ -53,7 +78,7 @@ export function CategoryBarChart({
     return null;
   };
 
-  // Calculate max value for axis domain with padding for labels
+  // Calculate max value for axis domain with padding for the bar labels.
   const maxValue = sorted.length > 0 ? Math.max(...sorted.map((d) => d.value)) : 0;
   const domainPadding = maxValue * 0.15;
 
@@ -63,32 +88,41 @@ export function CategoryBarChart({
         <h3 className="text-sm font-semibold text-foreground mb-3">{title}</h3>
       )}
       {!hasData ? (
-        <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+        <div
+          className="flex items-center justify-center text-sm text-muted-foreground"
+          style={{ height: adaptiveHeight }}
+        >
           <p>No data yet.</p>
         </div>
       ) : (
-        <div className="h-[280px] w-full" style={{ height }}>
-          <ResponsiveContainer width="100%" height={height}>
-            <BarChart data={sorted} layout="vertical" margin={{ left: 10, right: 10, top: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={true} horizontal={false} stroke="currentColor" strokeOpacity={0.1} />
+        <div className="w-full" style={{ height: adaptiveHeight }}>
+          <ResponsiveContainer width="100%" height={adaptiveHeight}>
+            <BarChart
+              data={sorted}
+              layout="vertical"
+              margin={{ left: 0, right: 8, top: 4, bottom: 4 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={true}
+                horizontal={false}
+                stroke="currentColor"
+                strokeOpacity={0.1}
+              />
+              {/*
+                The value axis is hidden: exact values are already printed
+                at the end of every bar, so the number scale is noise.
+              */}
+              <XAxis type="number" hide domain={[0, maxValue + domainPadding]} />
               <YAxis
                 type="category"
                 dataKey="name"
+                width={yAxisWidth}
                 tickLine={false}
                 axisLine={false}
                 fontSize={12}
-                width={160}
                 tickMargin={8}
-                tickFormatter={(value: string) => value}
-              />
-              <XAxis
-                type="number"
-                allowDecimals={false}
-                tickLine={false}
-                axisLine={false}
-                fontSize={11}
-                tick={{ fill: "var(--muted-foreground)" }}
-                domain={[0, maxValue + domainPadding]}
+                tickFormatter={truncateTick}
               />
               <Tooltip
                 content={<CustomTooltip />}

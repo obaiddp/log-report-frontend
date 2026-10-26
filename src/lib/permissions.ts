@@ -26,24 +26,6 @@ export function canViewAllLogs(user: UserLike): boolean {
   );
 }
 
-export function canCreateLogs(user: UserLike): boolean {
-  return hasPermission(user, "create_support_logs");
-}
-
-export function canUpdateLogs(user: UserLike): boolean {
-  return canViewAllLogs(user) || hasPermission(user, "update_own_support_logs");
-}
-
-/**
- * Deleting logs has no dedicated permission in the backend yet — only the
- * seeded `admin` role gets it for now. Add a `delete_support_logs`
- * permission server-side and key off it here.
- */
-export function canDeleteLogs(user: UserLike): boolean {
-  return user?.role?.name === "admin";
-}
-
-
 export function canViewUserPerformance(user: UserLike): boolean {
   return hasPermission(user, "user_performance");
 }
