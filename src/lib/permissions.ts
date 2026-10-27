@@ -13,17 +13,17 @@ export function hasAnyPermission(user: UserLike, names: string[]): boolean {
   return names.some((name) => hasPermission(user, name));
 }
 
-/** Full access to the organisation-wide dashboard and all logs. */
+/**
+ * Sees every support log, not just the ones they created or are assigned to.
+ * Backed by the view_all_support_logs permission (super_admin, ict_manager).
+ */
 export function canViewAllLogs(user: UserLike): boolean {
-  return (
-    hasPermission(user, "view_reports") ||
-    hasAnyPermission(user, [
-      "manage_departments",
-      "manage_item_types",
-      "manage_issue_types",
-      "manage_users",
-    ])
-  );
+  return hasPermission(user, "view_all_support_logs");
+}
+
+/** May delete support logs. Backed by the delete_support_logs permission. */
+export function canDeleteLogs(user: UserLike): boolean {
+  return hasPermission(user, "delete_support_logs");
 }
 
 export function canViewUserPerformance(user: UserLike): boolean {

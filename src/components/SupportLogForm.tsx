@@ -40,7 +40,6 @@ type SupportLogFormProps = {
 
 export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFormProps) {
   const { user: authUser } = useAuth();
-  console.log("authUser", authUser);
   const [date, setDate] = useState(today);
   const [initiator, setInitiator] = useState("");
   const [selectedDepartment, setSelectedDepartment] = useState("");
@@ -62,31 +61,43 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
 
   useEffect(() => {
     async function loadData() {
-      try {
-        setLoading(true);
-        setError("");
+      setLoading(true);
+      setError("");
 
-        const [departmentsResponse, itemsResponse, issuesResponse, usersResponse] =
-          await Promise.all([getDepartments(), getItems(), getIssues(), getUsers()]);
+      // allSettled waits for every call and reports each result on its own,
+      // so one failed (403) call no longer blocks the other dropdowns.
+      const [deptRes, itemsRes, issuesRes, usersRes] = await Promise.allSettled([
+        getDepartments(),
+        getItems(),
+        getIssues(),
+        getUsers(),
+      ]);
 
-        setDepartments(departmentsResponse.data);
-        setItems(itemsResponse.data);
-        setIssues(issuesResponse.data);
-        const ictUsers = usersResponse.data.filter(
-          (user) => user.department?.code === "ict"
+      if (deptRes.status === "fulfilled") setDepartments(deptRes.value.data);
+      if (itemsRes.status === "fulfilled") setItems(itemsRes.value.data);
+      if (issuesRes.status === "fulfilled") setIssues(issuesRes.value.data);
+
+      // "Worked by" is optional. /users is super_admin only, so for other
+      // roles this call fails and the dropdown simply stays empty.
+      if (usersRes.status === "fulfilled") {
+        setUsers(
+          usersRes.value.data.filter((u) => u.department?.code === "ict")
         );
-        setUsers(ictUsers);
-
-        // Prefill assigned resource with the logged-in user (still editable).
-        const viewer = usersResponse.data.find((u) => u.name === authUser?.name);
+        const viewer = usersRes.value.data.find((u) => u.id === authUser?.id);
         if (viewer) {
           setSelectedUser(String(viewer.id));
         }
-      } catch (err) {
-        setError(errorMessage(err));
-      } finally {
-        setLoading(false);
       }
+
+      // Show an error only if a REQUIRED dropdown failed to load.
+      const failed = [deptRes, itemsRes, issuesRes].find(
+        (r) => r.status === "rejected"
+      );
+      if (failed && failed.status === "rejected") {
+        setError(errorMessage(failed.reason));
+      }
+
+      setLoading(false);
     }
 
     loadData();
@@ -241,7 +252,7 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
             <option value="">Select status</option>
             <option value="in_progress">In Progress</option>
             <option value="indoor_repairing">Indoor Repairing</option>
-            <option value="outdoor_repairing">Outdoor Repairing</option>  
+            <option value="outdoor_repairing">Outdoor Repairing</option>
             <option value="resolved">Resolved</option>
             <option value="closed">Closed</option>
           </Select>
