@@ -21,17 +21,20 @@ export const navItems: NavItem[] = [
   { 
     to: "/", 
     label: "Dashboard", 
-    icon: LayoutDashboard 
+    icon: LayoutDashboard,
+    permission: "manage_dashboard",
   },
   { 
     to: "/support-logs", 
     label: "Support Logs", 
-    icon: ClipboardList 
+    icon: ClipboardList,
+    permission: "manage_support_logs",
   },
   {
     to: "/asset-inspections",
     label: "Asset Inspections",
     icon: ClipboardCheck,
+    permission: "manage_asset_inspections",
   },
   {
     to: "/admin/departments",
@@ -61,7 +64,7 @@ export const navItems: NavItem[] = [
     to: "/admin/roles",
     label: "Roles and Permissions",
     icon: Users,
-    permission: "manage_roles",
+    permission: "manage_role_permissions",
   },
 ];
 
