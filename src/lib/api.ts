@@ -87,12 +87,54 @@ async function request<T>(
 
 // ====================================================
 
+// ---------- Permission names (must match PermissionSeeder) ----------
+export type PermissionName =
+  | "manage_dashboard"
+  | "dashboard_support_logs"
+  | "dashboard_asset_inspections"
+  | "user_performance"
+  | "dashboard_department_view"
+  | "dashboard_all_view"
+  | "manage_support_logs"
+  | "manage_asset_inspections"
+  | "create_asset_inspections"
+  | "manage_departments"
+  | "manage_item_types"
+  | "manage_issue_types"
+  | "manage_users"
+  | "manage_role_permissions";
+
+// Permissions only super_admin may ever hold (server enforces this too)
+export const RESERVED_PERMISSIONS: PermissionName[] = [
+  "manage_users",
+  "manage_role_permissions",
+];
+
+export type RoleName =
+  | "super_admin"
+  | "ict_manager"
+  | "ict_staff"
+  | "admin_approver";
+
 // ---------- Auth ----------
+// login returns:  { data: User(with role.permissions), role, permissions }
+// me returns:     { user_from_request: User, role, permissions, ...debug keys }
+export type AuthLoginResponse = {
+  data: User;
+  role: RoleName | null;
+  permissions: PermissionName[];
+};
+
+export type AuthMeResponse = {
+  user_from_request: User;
+  role: RoleName | null;
+  permissions: PermissionName[];
+};
 
 export async function login(email: string, password: string) {
   await getCsrfCookie();
 
-  return request("/api/auth/login", {
+  return request<AuthLoginResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({
       email,
@@ -102,7 +144,7 @@ export async function login(email: string, password: string) {
 }
 
 export async function getMe() {
-  return request("/api/auth/me");
+  return request<AuthMeResponse>("/api/auth/me");
 }
 
 export async function logout() {
@@ -118,6 +160,7 @@ export type Role = {
   name: string;
   created_at?: string;
   updated_at?: string;
+  permissions?: Permission[];
 };
 
 export function getRoles() {
@@ -161,7 +204,9 @@ export function getRolePermissions(roleId: number) {
   return request<RolePermissionsResponse>(`/api/roles/${roleId}/permissions`);
 }
 
-// Bulk update / sync permissions for a role
+// Bulk update / sync permissions for a role.
+// Server returns 403 for the super_admin role, and when manage_users or
+// manage_role_permissions is included for any other role.
 export function updateRolePermissions(roleId: number, permissionIds: number[]) {
   return request<UpdateRolePermissionsResponse>(`/api/roles/${roleId}/permissions`, {
     method: "PUT",
@@ -172,22 +217,6 @@ export function updateRolePermissions(roleId: number, permissionIds: number[]) {
 }
 
 
-// ---------- Dashboard ----------
-export type UserPerformance = {
-  user_id: number;
-  name: string;
-  tickets_assigned: number;
-  tickets_resolved: number;
-  avg_resolution_hours: number | null;
-};
-
-export function getUserPerformance() {
-  return request<{ status: string; data: UserPerformance[] }>(
-    "/api/dashboard/user-performance"
-  );
-}
-
-
 // ---------- User ----------
 export type User = {
   id: number;
@@ -195,6 +224,7 @@ export type User = {
   email: string;
   designation: string | null;
   role_id: number;
+  department_id?: number;
   role?: Role;
   department?: Department;
 };
@@ -216,6 +246,7 @@ export type UpdateUserPayload = {
   role_id?: number;
 };
 
+// permission: manage_users (super_admin only)
 export function getUsers() {
   return request<{ status: string; data: User[] }>("/api/users");
 }
@@ -244,9 +275,23 @@ export function deleteUser(id: number) {
   });
 }
 
+// Approver picker for the inspection form.
+// permission: create_asset_inspections. Already limited by the server to
+// the admin-log department and excludes the logged-in user.
+export type Approver = {
+  id: number;
+  name: string;
+  designation: string | null;
+};
+
+export function getApprovers() {
+  return request<{ status: string; data: Approver[] }>("/api/approvers");
+}
+
 // ---------- Departments ----------
 export type Department = { id: number; name: string; code: string };
 
+// GET is open to any logged-in user; write actions need manage_departments
 export function getDepartments() {
   return request<{ status: string; data: Department[] }>("/api/departments");
 }
@@ -335,9 +380,11 @@ export function deleteItem(id: number) {
 // ---------- Support Logs / Log Report ----------
 
 export type SupportLogStatus =
+  | 'in_progress'
   | "indoor_repairing"
   | "outdoor_repairing"
-  | "solved";
+  | "resolved"
+  | "closed";      
 
 export type SupportLog = {
   id: number;
@@ -485,6 +532,7 @@ export type AssetInspection = {
 
 // Create: signatures and prepared_by are set by the server.
 // user_digital_signature must be true (IT confirms the user acknowledged).
+// admin_user must be an id returned by getApprovers().
 export type AssetInspectionInput = {
   username: string;
   designation?: string | null;
@@ -526,7 +574,9 @@ export type AssetInspectionReturnInput = {
   admin_remarks?: string | null;
 };
 
-// Get all asset inspections
+// permission: manage_asset_inspections.
+// Server returns all forms to super_admin / ict_manager; everyone else only
+// the forms they prepared or are assigned to approve.
 export function getAssetInspections() {
   return request<{
     status: string;
@@ -534,7 +584,7 @@ export function getAssetInspections() {
   }>("/api/asset-inspections");
 }
 
-// Get one asset inspection
+// Get one asset inspection (403 if not preparer, assigned admin or manager)
 export function getAssetInspection(id: number) {
   return request<{
     status: string;
@@ -542,7 +592,7 @@ export function getAssetInspection(id: number) {
   }>(`/api/asset-inspections/${id}`);
 }
 
-// Create an asset inspection (ICT)
+// Create an asset inspection (permission: create_asset_inspections)
 export function createAssetInspection(data: AssetInspectionInput) {
   return request<{
     status: string;
@@ -554,7 +604,7 @@ export function createAssetInspection(data: AssetInspectionInput) {
   });
 }
 
-// Update an asset inspection (the ICT preparer, until it is completed)
+// Update (permission: create_asset_inspections, and must be the preparer)
 export function updateAssetInspection(id: number, data: AssetInspectionUpdateInput) {
   return request<{
     status: string;
@@ -590,7 +640,7 @@ export function returnAssetInspection(id: number, data: AssetInspectionReturnInp
   });
 }
 
-// Delete an asset inspection (the ICT preparer, until it is completed)
+// Delete (permission: create_asset_inspections, and must be the preparer)
 export function deleteAssetInspection(id: number) {
   return request<{
     status: string;
@@ -598,4 +648,141 @@ export function deleteAssetInspection(id: number) {
   }>(`/api/asset-inspections/${id}`, {
     method: "DELETE",
   });
+}
+
+
+// ---------- Dashboard (scoped + filterable) ----------
+// scope: mine = my records, department = my department, all = everything.
+// department needs dashboard_department_view, all needs dashboard_all_view.
+export type DashboardScope = "mine" | "department" | "all";
+
+export type LabelCount = { label: string | null; total: number };
+export type NamedCount = { id: number | null; name: string; total: number };
+export type DayCount = { day: string; total: number }; // day = YYYY-MM-DD
+export type PersonApprovalCount = {
+  id: number;
+  name: string;
+  total: number;
+  pending: number;
+  returned: number;
+  completed: number;
+};
+
+// Dates are YYYY-MM-DD. Empty values are not sent.
+export type SupportLogDashboardFilters = {
+  scope?: DashboardScope;
+  from?: string;
+  to?: string;
+  department_id?: number;
+  item_type_id?: number;
+  status?: SupportLogStatus;
+  created_by?: number;
+  assigned_to?: number;
+};
+
+export type AssetInspectionDashboardFilters = {
+  scope?: DashboardScope;
+  from?: string;
+  to?: string;
+  department_id?: number;
+  item_type_id?: number;
+  status?: string; // item status, e.g. handover_for_repairing
+  approval_status?: AssetApprovalStatus;
+  prepared_by?: number;
+  admin_user?: number;
+};
+
+function toQuery(params: Record<string, unknown>): string {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== "") {
+      qs.set(key, String(value));
+    }
+  }
+  const s = qs.toString();
+  return s ? `?${s}` : "";
+}
+
+// permission: dashboard_support_logs
+export type SupportLogDashboard = {
+  scope: DashboardScope;
+  summary: {
+    total: number;
+    solved: number;
+    open: number;
+    last_7_days: number;
+    avg_resolution_hours: number | null;
+  };
+  by_status: LabelCount[];
+  by_department: NamedCount[];
+  by_item_type: NamedCount[];
+  by_issue_type: NamedCount[];
+  by_creator: NamedCount[];
+  by_assignee: NamedCount[];
+  trend: DayCount[];
+};
+
+export function getSupportLogDashboard(filters: SupportLogDashboardFilters = {}) {
+  return request<{ status: string; data: SupportLogDashboard }>(
+    `/api/dashboard/support-logs${toQuery(filters)}`
+  );
+}
+
+// permission: dashboard_asset_inspections
+export type AssetInspectionDashboard = {
+  scope: DashboardScope;
+  summary: {
+    total: number;
+    pending: number;
+    returned: number;
+    completed: number;
+    avg_approval_hours: number | null;
+    needs_my_signature: number; // personal, ignores scope and filters
+    returned_to_me: number; // personal, ignores scope and filters
+  };
+  by_approval_status: LabelCount[];
+  by_item_status: LabelCount[];
+  by_department: NamedCount[];
+  by_item_type: NamedCount[];
+  by_preparer: PersonApprovalCount[];
+  by_approver: PersonApprovalCount[];
+  trend: DayCount[];
+};
+
+export function getAssetInspectionDashboard(
+  filters: AssetInspectionDashboardFilters = {}
+) {
+  return request<{ status: string; data: AssetInspectionDashboard }>(
+    `/api/dashboard/asset-inspections${toQuery(filters)}`
+  );
+}
+
+// ---------- User performance ----------
+
+export type UserPerformance = {
+  user_id: number;
+  name: string;
+  tickets_assigned: number;
+  tickets_resolved: number;
+  avg_resolution_hours: number | null;
+};
+
+// permission: user_performance
+export function getUserPerformance() {
+  return request<{ status: string; data: UserPerformance[] }>(
+    "/api/dashboard/user-performance"
+  );
+}
+
+// permission: manage_dashboard. People for the filter dropdowns.
+export type DashboardFilterOptions = {
+  scope: DashboardScope;
+  users: { id: number; name: string }[];
+  approvers: { id: number; name: string }[];
+};
+
+export function getDashboardFilterOptions(scope: DashboardScope = "mine") {
+  return request<{ status: string; data: DashboardFilterOptions }>(
+    `/api/dashboard/filter-options${toQuery({ scope })}`
+  );
 }

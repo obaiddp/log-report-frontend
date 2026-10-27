@@ -32,19 +32,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import SupportLogForm from "@/components/SupportLogForm";
-import { canCreateLogs, canDeleteLogs, canUpdateLogs, canViewAllLogs } from "@/lib/permissions";
 import { useAuth } from "@/context/AuthContext";
 
 const STATUS_LABELS: Record<SupportLogStatus, string> = {
   indoor_repairing: "Indoor Repairing",
   outdoor_repairing: "Outdoor Repairing",
-  solved: "Solved",
+  resolved: "Resolved",
+  in_progress: "In Progress",
+  closed: "Closed"
 };
 
 const STATUS_SELECT_CLASSES: Record<SupportLogStatus, string> = {
   indoor_repairing: "bg-status-indoor-bg text-status-indoor-text border-transparent",
   outdoor_repairing: "bg-status-outdoor-bg text-status-outdoor-text border-transparent",
-  solved: "bg-status-solved-bg text-status-solved-text border-transparent",
+  resolved: "bg-status-resolved-bg text-status-resolved-text border-transparent",
+  in_progress: "bg-status-in-progress-bg text-status-in-progress-text border-transparent",
+  closed: "bg-status-closed-bg text-status-closed-text border-transparent",
 };
 
 function formatStatus(status: string): string {
@@ -53,8 +56,12 @@ function formatStatus(status: string): string {
       return "Indoor Repairing";
     case "outdoor_repairing":
       return "Outdoor Repairing";
-    case "solved":
-      return "Solved";
+    case "resolved":
+      return "Resolved";
+    case "in_progress":
+      return "In Progress";
+    case "closed":
+      return "Closed";
     default:
       return status;
   }
@@ -177,14 +184,33 @@ export default function SupportLogsPage() {
 
   // UI scoping only — the API currently returns all logs to every
   // authenticated user. The backend must enforce this server-side.
+  // const visibleLogs = useMemo(() => {
+  //   if ( !user) {
+  //     return supportLogs; 
+  //   }
+    
+  //   if (user.role?.name === "super_admin") {
+  //     return supportLogs;
+  //   }
+    
+  //   return supportLogs.filter(
+  //     (log) => log.created_by === user.id || log.assigned_to === user.id
+  //   );
+  // }, [supportLogs, user]);
+
   const visibleLogs = useMemo(() => {
-    if (canViewAllLogs(user) || !user) {
-      return supportLogs;
-    }
-    return supportLogs.filter(
-      (log) => log.created_by === user.id || log.assigned_to === user.id
-    );
-  }, [supportLogs, user]);
+  if (!user) {
+    return supportLogs;
+  }
+
+  if (user.role?.name === "super_admin") {
+    return supportLogs;
+  }
+
+  return supportLogs.filter(
+    (log) => log.created_by === user.id || log.assigned_to === user.id
+  );
+}, [supportLogs, user]);
 
   const filteredLogs = visibleLogs.filter((log) => {
     const searchText = search.toLowerCase();
@@ -207,20 +233,17 @@ export default function SupportLogsPage() {
       <div id="support-logs-header" className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Support Logs</h2>
-          <p className="text-sm text-muted-foreground">
-            Track and update indoor/outdoor repair tickets.
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Button id="btn-export-csv" variant="outline" size="sm" onClick={handleExport}>
             <Download className="size-4" /> Export CSV
           </Button>
-          {canCreateLogs(user) && (
+          
             <Button id="btn-new-log" size="sm" onClick={() => setCreateOpen(true)}>
               <Plus className="size-4" /> New Log
             </Button>
-          )}
+          
         </div>
       </div>
 
@@ -251,9 +274,11 @@ export default function SupportLogsPage() {
               className="w-44"
             >
               <option value="">All statuses</option>
+              <option value="in_progress">In Progress</option>
               <option value="indoor_repairing">Indoor Repairing</option>
               <option value="outdoor_repairing">Outdoor Repairing</option>
-              <option value="solved">Solved</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
             </Select>
 
             <Select
@@ -348,7 +373,7 @@ export default function SupportLogsPage() {
                         {log.issue_details || "-"}
                       </TableCell>
                       <TableCell>
-                        {canUpdateLogs(user) ? (
+                        
                           <Select
                             id={`status-select-${log.id}`}
                             value={log.status}
@@ -366,20 +391,11 @@ export default function SupportLogsPage() {
                               </option>
                             ))}
                           </Select>
-                        ) : (
-                          <span
-                            className={cn(
-                              "inline-flex rounded-full px-2.5 py-1 text-xs font-medium",
-                              STATUS_SELECT_CLASSES[log.status]
-                            )}
-                          >
-                            {STATUS_LABELS[log.status]}
-                          </span>
-                        )}
+                        
                       </TableCell>
                       <TableCell>{log.assigned_resource?.name ?? "-"}</TableCell>
                       <TableCell className="text-right">
-                        {canDeleteLogs(user) && (
+                        
                           <Button
                             id={`btn-delete-${log.id}`}
                             variant="ghost"
@@ -390,7 +406,7 @@ export default function SupportLogsPage() {
                           >
                             <Trash2 className="size-4" />
                           </Button>
-                        )}
+                        
                       </TableCell>
                     </TableRow>
                   ))
