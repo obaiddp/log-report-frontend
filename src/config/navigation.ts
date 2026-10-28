@@ -1,13 +1,14 @@
 import {
-  ClipboardCheck,
-  ClipboardList,
   LayoutDashboard,
-  Tags,
+  ClipboardList,
+  ClipboardCheck,
   Building2,
   Package,
-  type LucideIcon,
+  Tags,
   Users,
+  Settings,
 } from "lucide-react";
+
 
 export type NavItem = {
   to: string;
@@ -17,16 +18,16 @@ export type NavItem = {
   permission?: string;
 };
 
-export const navItems: NavItem[] = [
-  { 
-    to: "/", 
-    label: "Dashboard", 
+export const navItems = [
+  {
+    to: "/",
+    label: "Dashboard",
     icon: LayoutDashboard,
     permission: "manage_dashboard",
   },
-  { 
-    to: "/support-logs", 
-    label: "Support Logs", 
+  {
+    to: "/support-logs",
+    label: "Support Logs",
     icon: ClipboardList,
     permission: "manage_support_logs",
   },
@@ -36,6 +37,9 @@ export const navItems: NavItem[] = [
     icon: ClipboardCheck,
     permission: "manage_asset_inspections",
   },
+];
+
+export const settingsNavItems = [
   {
     to: "/admin/departments",
     label: "Departments",
@@ -67,6 +71,7 @@ export const navItems: NavItem[] = [
     permission: "manage_role_permissions",
   },
 ];
+
 
 export function filterNavItems(
   items: NavItem[],

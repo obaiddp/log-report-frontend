@@ -6,7 +6,7 @@ import {
   getDepartments,
   getItems,
   getIssues,
-  getUsers,
+  getSupportLogAssignees,
   type Department,
   type Issue,
   type Item,
@@ -70,7 +70,7 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
         getDepartments(),
         getItems(),
         getIssues(),
-        getUsers(),
+        getSupportLogAssignees(),
       ]);
 
       if (deptRes.status === "fulfilled") setDepartments(deptRes.value.data);
@@ -81,7 +81,7 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
       // roles this call fails and the dropdown simply stays empty.
       if (usersRes.status === "fulfilled") {
         setUsers(
-          usersRes.value.data.filter((u) => u.department?.code === "ict")
+          usersRes.value.data
         );
         const viewer = usersRes.value.data.find((u) => u.id === authUser?.id);
         if (viewer) {

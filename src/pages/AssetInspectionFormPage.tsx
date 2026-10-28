@@ -15,7 +15,7 @@ import {
   getAssetInspection,
   getDepartments,
   getItems,
-  getUsers,
+  getApprovers,
   updateAssetInspection,
   type AssetInspection,
   type AssetInspectionInput,
@@ -190,8 +190,9 @@ export default function AssetInspectionFormPage() {
   const [inspection, setInspection] = useState<AssetInspection | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [items, setItems] = useState<Item[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
-  const [userAcknowledged, setUserAcknowledged] = useState(false);
+  // const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<Approver[]>([]);
+  const [userAcknowledged, setUserAcknowledged] = useState(true);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -207,7 +208,7 @@ export default function AssetInspectionFormPage() {
       const [departmentsResponse, itemsResponse, usersResponse] = await Promise.all([
         getDepartments(),
         getItems(),
-        getUsers(),
+        getApprovers(),
       ]);
 
       setDepartments(departmentsResponse.data);
@@ -420,7 +421,7 @@ export default function AssetInspectionFormPage() {
           { authUser?.department?.code === "ict" && (
             <Card>
             <CardHeader>
-              <CardTitle className="text-base">Person bringing the item</CardTitle>
+              <CardTitle className="text-base">Item belongs to</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <Field id="inspection-username" label="Full name" required error={fieldErrors.username}>
@@ -547,6 +548,15 @@ export default function AssetInspectionFormPage() {
                 </Select>
               </Field>
 
+              <Field id="inspection-item-tag" label="Item tag" error={fieldErrors.item_tag}>
+                <Input
+                  id="inspection-item-tag"
+                  value={form.itemTag}
+                  onChange={(event) => updateField("itemTag", event.target.value)}
+                  disabled={submitting}
+                />
+              </Field>
+
               <Field id="inspection-brand" label="Brand" required error={fieldErrors.brand}>
                 <Input
                   id="inspection-brand"
@@ -574,14 +584,7 @@ export default function AssetInspectionFormPage() {
                 />
               </Field>
 
-              <Field id="inspection-item-tag" label="Item tag" error={fieldErrors.item_tag}>
-                <Input
-                  id="inspection-item-tag"
-                  value={form.itemTag}
-                  onChange={(event) => updateField("itemTag", event.target.value)}
-                  disabled={submitting}
-                />
-              </Field>
+              
 
               {acceptsSpecifications && (
                 <>
@@ -723,7 +726,6 @@ export default function AssetInspectionFormPage() {
                     <option value="">Select admin user</option>
 
                     {users
-                      .filter((user) => user.department?.code === "admin-log")
                       .map((user) => (
                         <option key={user.id} value={user.id}>
                           {user.name}

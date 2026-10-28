@@ -275,19 +275,6 @@ export function deleteUser(id: number) {
   });
 }
 
-// Approver picker for the inspection form.
-// permission: create_asset_inspections. Already limited by the server to
-// the admin-log department and excludes the logged-in user.
-export type Approver = {
-  id: number;
-  name: string;
-  designation: string | null;
-};
-
-export function getApprovers() {
-  return request<{ status: string; data: Approver[] }>("/api/approvers");
-}
-
 // ---------- Departments ----------
 export type Department = { id: number; name: string; code: string };
 
@@ -470,6 +457,22 @@ export function deleteSupportLog(id: number) {
     method: "DELETE",
   });
 }
+
+
+export type SupportLogAssignee = {
+  id: number,
+  name: string
+}
+
+export function getSupportLogAssignees() {
+  return request<{ status: string; data: SupportLogAssignee[] }>(
+    "/api/support-log-assignees"
+  );
+}
+
+
+// ---------------------------------------------------------
+// ---------------------------------------------------------
 // ---------- Asset Inspections ----------
 export type AssetInspectionStatus = string;
 
@@ -648,6 +651,33 @@ export function deleteAssetInspection(id: number) {
   }>(`/api/asset-inspections/${id}`, {
     method: "DELETE",
   });
+}
+
+// ?????????????????????????????????????????
+export type AssetInspectionAssignee = {
+  id: number,
+  name: string
+}
+
+export function getAssetInspectionAssignee() {
+  return request<{ status: string; data: SupportLogAssignee[] }>(
+    "/api/asset-inspections-assignees"
+  );
+}
+
+// ?????????????????????????????????????????
+
+// Approver picker for the inspection form.
+// permission: create_asset_inspections. Already limited by the server to
+// the admin-log department and excludes the logged-in user.
+export type Approver = {
+  id: number;
+  name: string;
+  designation: string | null;
+};
+
+export function getApprovers() {
+  return request<{ status: string; data: Approver[] }>("/api/approvers");
 }
 
 

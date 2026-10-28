@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import { ChevronDown, LogOut, Menu, User as UserIcon, X } from "lucide-react";
+import { ChevronDown, LogOut, Menu, User as UserIcon, X, Settings } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
-import { filterNavItems, navItems } from "@/config/navigation";
+import {
+  filterNavItems,
+  navItems,
+  settingsNavItems,
+} from "@/config/navigation";
 import { getAssetInspections } from "@/lib/api";
 import { inspectionAdminId } from "@/lib/asset-inspections";
 import { useAutoRefresh } from "@/hooks/use-auto-refresh";
@@ -28,55 +32,90 @@ function SidebarContent({
   const location = useLocation();
   const permissionNames = user?.role?.permissions.map((p) => p.name) ?? [];
   const items = filterNavItems(navItems, permissionNames);
+  const settingsItems = filterNavItems(settingsNavItems, permissionNames);
+
+  const settingsActive = settingsItems.some((item) =>
+    location.pathname.startsWith(item.to)
+  );
+  // Starts open when the current page is a settings page.
+  const [settingsOpen, setSettingsOpen] = useState(settingsActive);
+
+  const linkClass = (isActive: boolean) =>
+    cn(
+      "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-foreground/80 transition-colors hover:bg-white/60",
+      isActive && "bg-card font-medium text-foreground"
+    );
 
   return (
     <div className="flex h-full flex-col">
-      
       <div className="flex items-center gap-2.5 px-5 py-5">
-        <img
-          src="/images/cef-logo-1.png"
-          alt="CEF"
-          className="size-8 rounded-full"
-        />
+        <img src="/images/cef-logo-1.png" alt="CEF" className="size-8 rounded-full" />
         <p className="text-sm font-semibold leading-tight text-foreground">CEF365</p>
       </div>
 
       <nav id="main-nav" className="flex-1 space-y-0.5 px-3">
         {items.map((item) => {
-          const active =
-            item.to === "/"
-              ? location.pathname === "/"
-              : location.pathname.startsWith(item.to);
           const Icon = item.icon;
           return (
             <NavLink
               key={item.to}
-              id={`nav-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
               to={item.to}
+              end={item.to === "/"}
               onClick={onNavigate}
-              className={cn(
-                "relative flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-foreground/80 transition-colors hover:bg-white/60",
-                active && "bg-card font-medium text-foreground hover:bg-card"
-              )}
+              className={({ isActive }) => linkClass(isActive)}
             >
-              {active && (
-                <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-primary" />
-              )}
-              <Icon className={cn("size-4", active ? "text-primary-hover" : "text-muted-foreground")} />
-              {item.label}
-
+              <Icon className="size-4 text-muted-foreground" />
+              <span>{item.label}</span>
               {item.to === "/asset-inspections" && pendingApprovals > 0 && (
-                <span
-                  id="pending-approvals-badge"
-                  className="ml-auto rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary-foreground"
-                  title={`${pendingApprovals} inspection(s) waiting for your signature`}
-                >
+                <span className="ml-auto rounded-full bg-primary px-1.5 text-[11px] font-medium text-primary-foreground">
                   {pendingApprovals}
                 </span>
               )}
             </NavLink>
           );
         })}
+
+        {settingsItems.length > 0 && (
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setSettingsOpen((open) => !open)}
+              aria-expanded={settingsOpen}
+              className={cn(
+                "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-foreground/80 transition-colors hover:bg-white/60",
+                settingsActive && !settingsOpen && "font-medium text-foreground"
+              )}
+            >
+              <Settings className="size-4 text-muted-foreground" />
+              <span>Settings</span>
+              <ChevronDown
+                className={cn(
+                  "ml-auto size-4 text-muted-foreground transition-transform",
+                  settingsOpen && "rotate-180"
+                )}
+              />
+            </button>
+
+            {settingsOpen && (
+              <div className="ml-5 mt-0.5 space-y-0.5 border-l border-border/70 pl-2">
+                {settingsItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      onClick={onNavigate}
+                      className={({ isActive }) => linkClass(isActive)}
+                    >
+                      <Icon className="size-4 text-muted-foreground" />
+                      <span>{item.label}</span>
+                    </NavLink>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </nav>
 
       <div className="border-t border-border/70 px-5 py-4">
@@ -117,11 +156,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
   useAutoRefresh(refreshPendingApprovals);
 
   const currentLabel =
-    navItems.find((item) =>
-      item.to === "/"
-        ? location.pathname === "/"
-        : location.pathname.startsWith(item.to)
-    )?.label ?? (location.pathname.startsWith("/profile") ? "Profile" : "CEF365");
+  [...navItems, ...settingsNavItems].find((item) =>
+    item.to === "/"
+      ? location.pathname === "/"
+      : location.pathname.startsWith(item.to)
+  )?.label ??
+  (location.pathname.startsWith("/profile") ? "Profile" : "CEF365");
 
   return (
     <div className="min-h-screen bg-background">
