@@ -10,8 +10,8 @@ import {
   type Department,
   type Issue,
   type Item,
-  type User,
   type SupportLog,
+  type SupportLogAssignee,
   type SupportLogStatus,
 } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -52,7 +52,7 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
   const [departments, setDepartments] = useState<Department[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [items, setItems] = useState<Item[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<SupportLogAssignee[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);

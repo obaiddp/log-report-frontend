@@ -22,7 +22,7 @@ import {
   type AssetInspectionUpdateInput,
   type Department,
   type Item,
-  type User,
+  type Approver,
 } from "@/lib/api";
 import {
   canEditInspection,

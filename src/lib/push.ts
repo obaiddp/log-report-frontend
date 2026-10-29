@@ -54,9 +54,14 @@ export async function enablePush(): Promise<PushSubscription> {
 
   if (existing) return existing;
 
+  const keyBytes = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+  const applicationServerKey = new ArrayBuffer(keyBytes.length);
+
+  new Uint8Array(applicationServerKey).set(keyBytes);
+
   return registration.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    applicationServerKey,
   });
 }
 

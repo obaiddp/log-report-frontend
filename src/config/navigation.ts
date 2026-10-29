@@ -6,8 +6,9 @@ import {
   Package,
   Tags,
   Users,
-  Settings,
 } from "lucide-react";
+
+import type { LucideIcon } from "lucide-react";
 
 
 export type NavItem = {
