@@ -653,19 +653,6 @@ export function deleteAssetInspection(id: number) {
   });
 }
 
-// ?????????????????????????????????????????
-export type AssetInspectionAssignee = {
-  id: number,
-  name: string
-}
-
-export function getAssetInspectionAssignee() {
-  return request<{ status: string; data: SupportLogAssignee[] }>(
-    "/api/asset-inspections-assignees"
-  );
-}
-
-// ?????????????????????????????????????????
 
 // Approver picker for the inspection form.
 // permission: create_asset_inspections. Already limited by the server to
@@ -815,4 +802,19 @@ export function getDashboardFilterOptions(scope: DashboardScope = "mine") {
   return request<{ status: string; data: DashboardFilterOptions }>(
     `/api/dashboard/filter-options${toQuery({ scope })}`
   );
+}
+
+// -------------------------- Notification
+export function savePushSubscription(subscription: PushSubscription) {
+  return request<{ status: string; message: string }>("/api/push/subscribe", {
+    method: "POST",
+    body: JSON.stringify(subscription.toJSON()),
+  });
+}
+
+export function removePushSubscription(endpoint: string) {
+  return request<{ status: string; message: string }>("/api/push/unsubscribe", {
+    method: "POST",
+    body: JSON.stringify({ endpoint }),
+  });
 }
