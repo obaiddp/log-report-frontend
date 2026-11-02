@@ -478,11 +478,13 @@ export default function AssetInspectionFormPage() {
                   disabled={submitting}
                 >
                   <option value="">Select department</option>
-                  {departments.map((department) => (
-                    <option key={department.id} value={department.id}>
-                      {department.name}
-                    </option>
-                  ))}
+                  {departments
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((department) => (
+                      <option key={department.id} value={department.id}>
+                        {department.name}
+                      </option>
+                    ))}
                 </Select>
               </Field>
 
@@ -523,11 +525,13 @@ export default function AssetInspectionFormPage() {
                   disabled={submitting}
                 >
                   <option value="">Select item type</option>
-                  {items.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name}
-                    </option>
-                  ))}
+                  {items
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
                 </Select>
               </Field>
 

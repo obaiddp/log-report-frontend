@@ -206,7 +206,9 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
             <option value="">
               {loading ? "Loading departments..." : "Select department"}
             </option>
-            {departments.map((department) => (
+            {departments
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((department) => (
               <option key={department.id} value={department.id}>
                 {department.name}
               </option>
@@ -228,7 +230,9 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
             disabled={loading || submitting}
           >
             <option value="">{loading ? "Loading item types..." : "Select item type"}</option>
-            {items.map((item) => (
+            {items
+             .sort((a, b) => a.name.localeCompare(b.name))
+            .map((item) => (
               <option key={item.id} value={item.id}>
                 {item.name}
               </option>
