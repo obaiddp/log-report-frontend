@@ -185,14 +185,7 @@ export default function RolesPermissionsPage() {
 
   return (
     <Card id="roles-permissions-page">
-      <CardHeader>
-        <CardTitle className="text-base">Roles & Permissions</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Choose a role and control which permissions it has.
-        </p>
-      </CardHeader>
-
-      <CardContent className="space-y-5">
+      <CardContent className="space-y-5 pt-6">
         <div className="space-y-1.5">
           <label htmlFor="role-select" className="text-sm font-medium text-foreground">
             Role

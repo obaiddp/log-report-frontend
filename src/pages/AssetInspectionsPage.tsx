@@ -293,7 +293,6 @@ export default function AssetInspectionsPage() {
 
       <Card>
         <CardHeader className="space-y-3">
-          <CardTitle className="text-base">Inspection records</CardTitle>
 
           <div className="flex flex-wrap items-center gap-2">
             <Input

@@ -171,11 +171,7 @@ export default function EntityManager<T extends { id: number; name: string }>({
 
   return (
     <Card id={`entity-${title.toLowerCase().replace(/\s+/g, "-")}`}>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5 pt-6">
         {error && (
           <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
             {error}

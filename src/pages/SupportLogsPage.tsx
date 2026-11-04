@@ -43,11 +43,11 @@ const STATUS_LABELS: Record<SupportLogStatus, string> = {
 };
 
 const STATUS_SELECT_CLASSES: Record<SupportLogStatus, string> = {
-  indoor_repairing: "bg-status-indoor-bg text-status-indoor-text border-transparent",
-  outdoor_repairing: "bg-status-outdoor-bg text-status-outdoor-text border-transparent",
-  resolved: "bg-status-resolved-bg text-status-resolved-text border-transparent",
-  in_progress: "bg-status-in-progress-bg text-status-in-progress-text border-transparent",
-  closed: "bg-status-closed-bg text-status-closed-text border-transparent",
+  indoor_repairing:  "bg-blue-100 text-blue-800 border-transparent",
+  outdoor_repairing: "bg-orange-100 text-orange-800 border-transparent",
+  resolved:          "bg-green-100 text-green-800 border-transparent",
+  in_progress:       "bg-amber-100 text-amber-800 border-transparent",
+  closed:            "bg-slate-200 text-slate-700 border-transparent",
 };
 
 function formatStatus(status: string): string {
@@ -255,7 +255,6 @@ export default function SupportLogsPage() {
 
       <Card>
         <CardHeader className="space-y-3">
-          <CardTitle className="text-base">All logs</CardTitle>
 
           <div className="flex flex-wrap items-center gap-2">
             <Input

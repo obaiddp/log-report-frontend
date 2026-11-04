@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, EyeOff } from "lucide-react";
 
 import {
   ApiError,
@@ -73,6 +73,8 @@ export default function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
+  const [showEditPassword, setShowEditPassword] = useState(false);
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [formError, setFormError] = useState("");
@@ -216,12 +218,6 @@ export default function UsersPage() {
     <Card id="users-page">
       <CardHeader>
         <div className="flex items-center justify-between gap-3">
-          <div>
-            <CardTitle className="text-base">Users</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Create, edit, and remove user accounts.
-            </p>
-          </div>
           <Button id="btn-new-user" size="sm" onClick={openCreate}>
             <Plus className="size-4" /> New User
           </Button>
@@ -296,11 +292,6 @@ export default function UsersPage() {
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent id="dialog-create-user">
-          <DialogHeader>
-            <DialogTitle>New user</DialogTitle>
-            <DialogDescription>Create a new account.</DialogDescription>
-          </DialogHeader>
-
           <div className="space-y-3">
             <div className="space-y-1.5">
               <label htmlFor="create-name" className="text-sm font-medium">Name</label>
@@ -310,10 +301,39 @@ export default function UsersPage() {
               <label htmlFor="create-email" className="text-sm font-medium">Email</label>
               <Input id="create-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="you@example.com" />
             </div>
-            <div className="space-y-1.5">
-              <label htmlFor="create-password" className="text-sm font-medium">Password</label>
-              <Input id="create-password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Password" />
-            </div>
+
+
+<div className="space-y-1.5">
+  <label htmlFor="create-password" className="text-sm font-medium">
+    Password
+  </label>
+
+  <div className="relative">
+    <Input
+      id="create-password"
+      type={showCreatePassword ? "text" : "password"}
+      value={form.password}
+      onChange={(e) => setForm({ ...form, password: e.target.value })}
+      placeholder="Password"
+      className="pr-10"
+    />
+
+    <button
+      type="button"
+      onClick={() => setShowCreatePassword((prev) => !prev)}
+      aria-label={showCreatePassword ? "Hide password" : "Show password"}
+      aria-pressed={showCreatePassword}
+      className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {showCreatePassword ? (
+        <EyeOff className="size-4" aria-hidden="true" />
+      ) : (
+        <Eye className="size-4" aria-hidden="true" />
+      )}
+    </button>
+  </div>
+</div>
+
             <div className="space-y-1.5">
               <label htmlFor="create-designation" className="text-sm font-medium">Designation</label>
               <Input id="create-designation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} placeholder="e.g. Senior Developer" />

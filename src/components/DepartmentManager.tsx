@@ -10,8 +10,7 @@ import {
 export default function DepartmentManager() {
   return (
     <EntityManager<Department>
-      title="Departments"
-      description="Manage the departments that can raise support requests."
+      title=""
       createLabel="Add department"
       fields={[
         { key: "name", label: "Name", placeholder: "Department name" },
