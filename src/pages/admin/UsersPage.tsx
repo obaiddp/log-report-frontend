@@ -12,7 +12,8 @@ import {
   type User,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+
 import {
   Dialog,
   DialogContent,
@@ -73,7 +74,7 @@ export default function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  const [showCreatePassword, setShowCreatePassword] = useState(false);
+  //const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [showEditPassword, setShowEditPassword] = useState(false);
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
@@ -309,29 +310,28 @@ export default function UsersPage() {
   </label>
 
   <div className="relative">
-    <Input
-      id="create-password"
-      type={showCreatePassword ? "text" : "password"}
-      value={form.password}
-      onChange={(e) => setForm({ ...form, password: e.target.value })}
-      placeholder="Password"
-      className="pr-10"
-    />
+  <Input
+    id="edit-password"
+    type={showEditPassword ? "text" : "password"}
+    value={form.password}
+    onChange={(e) => setForm({ ...form, password: e.target.value })}
+    placeholder="Leave blank to keep current"
+    className="pr-10"
+  />
 
-    <button
-      type="button"
-      onClick={() => setShowCreatePassword((prev) => !prev)}
-      aria-label={showCreatePassword ? "Hide password" : "Show password"}
-      aria-pressed={showCreatePassword}
-      className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      {showCreatePassword ? (
-        <EyeOff className="size-4" aria-hidden="true" />
-      ) : (
-        <Eye className="size-4" aria-hidden="true" />
-      )}
-    </button>
-  </div>
+  <button
+    type="button"
+    onClick={() => setShowEditPassword((prev) => !prev)}
+    aria-label={showEditPassword ? "Hide password" : "Show password"}
+    className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+  >
+    {showEditPassword ? (
+      <EyeOff className="size-4" />
+    ) : (
+      <Eye className="size-4" />
+    )}
+  </button>
+</div>
 </div>
 
             <div className="space-y-1.5">

@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 
 import { ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -38,7 +38,6 @@ export type EntityField = {
 
 type EntityManagerProps<T extends { id: number; name: string }> = {
   title: string;
-  description: string;
   createLabel: string;
   fields: EntityField[];
   fetchAll: () => Promise<{ data: T[] }>;
@@ -59,7 +58,6 @@ type EntityManagerProps<T extends { id: number; name: string }> = {
 
 export default function EntityManager<T extends { id: number; name: string }>({
   title,
-  description,
   createLabel,
   fields,
   fetchAll,

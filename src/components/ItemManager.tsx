@@ -12,7 +12,6 @@ export default function ItemManager() {
   return (
     <EntityManager<Item>
       title="Item types"
-      description="Assets and equipment that can break."
       createLabel="Add item type"
       fields={[
         {
