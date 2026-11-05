@@ -14,6 +14,7 @@ import AssetInspectionFormPage from "./pages/AssetInspectionFormPage";
 import AssetInspectionDetailPage from "./pages/AssetInspectionDetailPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import DepartmentsPage from "./pages/admin/DepartmentsPage";
+import LocationsPage from "./pages/admin/LocationsPage";
 import ItemsPage from "./pages/admin/ItemsPage";
 import IssuesPage from "./pages/admin/IssuesPage";
 import UsersPage from "./pages/admin/UsersPage";
@@ -112,6 +113,14 @@ export default function App() {
             }
           />
 
+          <Route
+            path="/admin/locations"
+            element={
+              <RequirePermission permissions={["manage_locations"]}>
+                <LocationsPage />
+              </RequirePermission>
+            }
+          />
           <Route
             path="/admin/departments"
             element={

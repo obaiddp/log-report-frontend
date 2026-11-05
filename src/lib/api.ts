@@ -99,6 +99,7 @@ export type PermissionName =
   | "manage_asset_inspections"
   | "create_asset_inspections"
   | "manage_departments"
+  | "manage_locations"
   | "manage_item_types"
   | "manage_issue_types"
   | "manage_users"
@@ -302,6 +303,67 @@ export function deleteDepartment(id: number) {
     method: "DELETE",
   });
 }
+
+
+ // ---------- Locations ----------
+export type Location = {
+  id: number;
+  name: string;
+  is_head_office: boolean;
+  in_use: boolean;
+};
+
+// GET all locations
+export function getLocations() {
+  return request<{ status: string; data: Location[] }>("/api/locations");
+}
+
+// CREATE location
+export function createLocation(
+  name: string,
+  is_head_office: boolean = false,
+  in_use: boolean = false
+) {
+  return request<{ status: string; data: Location }>("/api/locations", {
+    method: "POST",
+    body: JSON.stringify({
+      name,
+      is_head_office,
+      in_use,
+    }),
+  });
+}
+
+// UPDATE location
+export function updateLocation(
+  id: number,
+  name: string,
+  is_head_office: boolean = false,
+  in_use: boolean = false
+) {
+  return request<{ status: string; data: Location }>(
+    `/api/locations/${id}`,
+    {
+      method: "PUT",
+      body: JSON.stringify({
+        name,
+        is_head_office,
+        in_use,
+      }),
+    }
+  );
+}
+
+// DELETE location
+export function deleteLocation(id: number) {
+  return request<{ status: string; message: string }>(
+    `/api/locations/${id}`,
+    {
+      method: "DELETE",
+    }
+  );
+}
+
 
 // ---------- Issues ----------
 export type Issue = { id: number; name: string };

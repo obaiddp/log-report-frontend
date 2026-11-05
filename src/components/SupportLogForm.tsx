@@ -1,4 +1,7 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { DialogTitle } from "@/components/ui/dialog";
+
 
 import {
   ApiError,
@@ -58,6 +61,22 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const departmentOptions = useMemo(
+  () =>
+    [...departments]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((d) => ({ value: String(d.id), label: d.name })),
+  [departments]
+);
+
+const itemOptions = useMemo(
+  () =>
+    [...items]
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((i) => ({ value: String(i.id), label: i.name })),
+  [items]
+);
 
   useEffect(() => {
     async function loadData() {
@@ -152,204 +171,200 @@ export default function SupportLogForm({ onLogCreated, onCancel }: SupportLogFor
   }
 
   return (
-    <form id="form-create-log" onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {error}
-        </p>
-      )}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <label htmlFor="log-date" className="text-sm font-medium text-foreground">
-            Date
-          </label>
-          <Input
-            id="log-date"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            disabled={submitting}
-          />
-          {fieldErrors.date && (
-            <p className="text-xs text-destructive">{fieldErrors.date}</p>
-          )}
-        </div>
+  
 
-        <div className="space-y-1.5">
-          <label htmlFor="log-initiator" className="text-sm font-medium text-foreground">
-            Initiated by
-          </label>
-          <Input
-            id="log-initiator"
-            type="text"
-            value={initiator}
-            onChange={(e) => setInitiator(e.target.value)}
-            placeholder="Enter person's name"
-            disabled={submitting}
-          />
-          {fieldErrors.initiator && (
-            <p className="text-xs text-destructive">{fieldErrors.initiator}</p>
-          )}
-        </div>
+  <form id="form-create-log" onSubmit={handleSubmit} className="space-y-4">
+    <br/>
+    {error && (
+      <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        {error}
+      </p>
+    )}
 
-        <div className="space-y-1.5">
-          <label htmlFor="log-department" className="text-sm font-medium text-foreground">
-            Initiator department
-          </label>
-          <Select
-            id="log-department"
-            value={selectedDepartment}
-            onChange={(e) => setSelectedDepartment(e.target.value)}
-            disabled={loading || submitting}
-          >
-            <option value="">
-              {loading ? "Loading departments..." : "Select department"}
-            </option>
-            {departments
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((department) => (
-              <option key={department.id} value={department.id}>
-                {department.name}
-              </option>
-            ))}
-          </Select>
-          {fieldErrors.department && (
-            <p className="text-xs text-destructive">{fieldErrors.department}</p>
-          )}
-        </div>
-
-        <div className="space-y-1.5">
-          <label htmlFor="log-item" className="text-sm font-medium text-foreground">
-            Item type
-          </label>
-          <Select
-            id="log-item"
-            value={selectedItem}
-            onChange={(e) => setSelectedItem(e.target.value)}
-            disabled={loading || submitting}
-          >
-            <option value="">{loading ? "Loading item types..." : "Select item type"}</option>
-            {items
-             .sort((a, b) => a.name.localeCompare(b.name))
-            .map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </Select>
-          {fieldErrors.item && (
-            <p className="text-xs text-destructive">{fieldErrors.item}</p>
-          )}
-        </div>
-
-        <div className="space-y-1.5">
-          <label htmlFor="log-status" className="text-sm font-medium text-foreground">
-            Status
-          </label>
-          <Select
-            id="log-status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as SupportLogStatus | "")}
-            disabled={submitting}
-          >
-            <option value="">Select status</option>
-            <option value="in_progress">In Progress</option>
-            <option value="indoor_repairing">Indoor Repairing</option>
-            <option value="outdoor_repairing">Outdoor Repairing</option>
-            <option value="resolved">Resolved</option>
-            <option value="closed">Closed</option>
-          </Select>
-          {fieldErrors.status && (
-            <p className="text-xs text-destructive">{fieldErrors.status}</p>
-          )}
-        </div>
-
-        <div className="space-y-1.5">
-          <label htmlFor="log-user" className="text-sm font-medium text-foreground">
-            Worked by / technical resource
-          </label>
-          <Select
-            id="log-user"
-            value={selectedUser}
-            onChange={(e) => setSelectedUser(e.target.value)}
-            disabled={loading || submitting}
-          >
-            <option value="">
-              {loading ? "Loading users..." : "Select technical resource"}
-            </option>
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.name}
-              </option>
-            ))}
-          </Select>
-        </div>
-      </div>
-
+    <div className="grid gap-4 sm:grid-cols-2">
       <div className="space-y-1.5">
-        <span className="text-sm font-medium text-foreground">Issue types</span>
-        <div className="flex flex-wrap gap-2">
-          {issues.map((issue) => {
-            const checked = selectedIssues.includes(issue.id);
-            return (
-              <label
-                key={issue.id}
-                className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors ${
-                  checked
-                    ? "border-primary/50 bg-primary/10 text-foreground"
-                    : "border-border bg-card text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                <input
-                  id={`issue-checkbox-${issue.id}`}
-                  type="checkbox"
-                  className="size-3.5 accent-[#78A03F]"
-                  value={issue.id}
-                  checked={checked}
-                  onChange={(e) => {
-                    const issueId = Number(e.target.value);
-                    setSelectedIssues((previous) =>
-                      e.target.checked
-                        ? [...previous, issueId]
-                        : previous.filter((id) => id !== issueId)
-                    );
-                  }}
-                  disabled={loading || submitting}
-                />
-                {issue.name}
-              </label>
-            );
-          })}
-        </div>
-        {fieldErrors.issues && (
-          <p className="text-xs text-destructive">{fieldErrors.issues}</p>
+        <label htmlFor="log-date" className="text-sm font-medium text-foreground">
+          Date
+        </label>
+        <Input
+          id="log-date"
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          disabled={submitting}
+        />
+        {fieldErrors.date && (
+          <p className="text-xs text-destructive">{fieldErrors.date}</p>
         )}
       </div>
 
       <div className="space-y-1.5">
-        <label htmlFor="log-description" className="text-sm font-medium text-foreground">
-          Issue description
+        <label htmlFor="log-initiator" className="text-sm font-medium text-foreground">
+          Initiated by
         </label>
-        <textarea
-          id="log-description"
-          value={issueDetails}
-          onChange={(e) => setIssueDetails(e.target.value)}
-          placeholder="Describe the issue..."
-          rows={4}
+        <Input
+          id="log-initiator"
+          type="text"
+          value={initiator}
+          onChange={(e) => setInitiator(e.target.value)}
+          placeholder="Enter person's name"
           disabled={submitting}
-          className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
         />
+        {fieldErrors.initiator && (
+          <p className="text-xs text-destructive">{fieldErrors.initiator}</p>
+        )}
       </div>
 
-      <div className="flex items-center justify-end gap-2 pt-2">
-        <Button id="btn-cancel-create" type="button" variant="outline" onClick={onCancel} disabled={submitting}>
-          Cancel
-        </Button>
-        <Button id="btn-create-log" type="submit" disabled={loading || submitting}>
-          {submitting ? "Creating..." : "Create support log"}
-        </Button>
+      <div className="space-y-1.5">
+        <label htmlFor="log-department" className="text-sm font-medium text-foreground">
+          Initiator department
+        </label>
+        <SearchableSelect
+          id="log-department"
+          value={selectedDepartment}
+          onChange={setSelectedDepartment}
+          options={departmentOptions}
+          placeholder={loading ? "Loading departments..." : "Select department"}
+          searchPlaceholder="Search department..."
+          disabled={loading || submitting}
+        />
+        {fieldErrors.department && (
+          <p className="text-xs text-destructive">{fieldErrors.department}</p>
+        )}
       </div>
-    </form>
-  );
+
+      <div className="space-y-1.5">
+        <label htmlFor="log-item" className="text-sm font-medium text-foreground">
+          Item type
+        </label>
+        <SearchableSelect
+          id="log-item"
+          value={selectedItem}
+          onChange={setSelectedItem}
+          options={itemOptions}
+          placeholder={loading ? "Loading item types..." : "Select item type"}
+          searchPlaceholder="Search item type..."
+          disabled={loading || submitting}
+        />
+        {fieldErrors.item && (
+          <p className="text-xs text-destructive">{fieldErrors.item}</p>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor="log-status" className="text-sm font-medium text-foreground">
+          Status
+        </label>
+        <Select
+          id="log-status"
+          value={status}
+          onChange={(e) => setStatus(e.target.value as SupportLogStatus | "")}
+          disabled={submitting}
+        >
+          <option value="">Select status</option>
+          <option value="in_progress">In Progress</option>
+          <option value="indoor_repairing">Indoor Repairing</option>
+          <option value="outdoor_repairing">Outdoor Repairing</option>
+          <option value="resolved">Resolved</option>
+          <option value="closed">Closed</option>
+        </Select>
+        {fieldErrors.status && (
+          <p className="text-xs text-destructive">{fieldErrors.status}</p>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor="log-user" className="text-sm font-medium text-foreground">
+          Worked by / technical resource
+        </label>
+        <Select
+          id="log-user"
+          value={selectedUser}
+          onChange={(e) => setSelectedUser(e.target.value)}
+          disabled={loading || submitting}
+        >
+          <option value="">
+            {loading ? "Loading users..." : "Select technical resource"}
+          </option>
+          {users.map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.name}
+            </option>
+          ))}
+        </Select>
+      </div>
+    </div>
+
+    <div className="space-y-1.5">
+      <span className="text-sm font-medium text-foreground">Issue types</span>
+      <div className="flex flex-wrap gap-2">
+        {issues.map((issue) => {
+          const checked = selectedIssues.includes(issue.id);
+          return (
+            <label
+              key={issue.id}
+              className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                checked
+                  ? "border-primary/50 bg-primary/10 text-foreground"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              <input
+                id={`issue-checkbox-${issue.id}`}
+                type="checkbox"
+                className="size-3.5 accent-[#78A03F]"
+                value={issue.id}
+                checked={checked}
+                onChange={(e) => {
+                  const issueId = Number(e.target.value);
+                  setSelectedIssues((previous) =>
+                    e.target.checked
+                      ? [...previous, issueId]
+                      : previous.filter((id) => id !== issueId)
+                  );
+                }}
+                disabled={loading || submitting}
+              />
+              {issue.name}
+            </label>
+          );
+        })}
+      </div>
+      {fieldErrors.issues && (
+        <p className="text-xs text-destructive">{fieldErrors.issues}</p>
+      )}
+    </div>
+
+    <div className="space-y-1.5">
+      <label htmlFor="log-description" className="text-sm font-medium text-foreground">
+        Issue description
+      </label>
+      <textarea
+        id="log-description"
+        value={issueDetails}
+        onChange={(e) => setIssueDetails(e.target.value)}
+        placeholder="Describe the issue..."
+        rows={4}
+        disabled={submitting}
+        className="w-full rounded-md border border-input bg-card px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+      />
+    </div>
+
+    <div className="flex items-center justify-end gap-2 pt-2">
+      <Button
+        id="btn-cancel-create"
+        type="button"
+        variant="outline"
+        onClick={onCancel}
+        disabled={submitting}
+      >
+        Cancel
+      </Button>
+      <Button id="btn-create-log" type="submit" disabled={loading || submitting}>
+        {submitting ? "Creating..." : "Create support log"}
+      </Button>
+    </div>
+  </form>
+);
 }

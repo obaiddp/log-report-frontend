@@ -42,6 +42,12 @@ export const navItems = [
 
 export const settingsNavItems = [
   {
+    to: "/admin/locations",
+    label: "Locations",
+    icon: Building2,
+    permission: "manage_locations",
+  },
+  {
     to: "/admin/departments",
     label: "Departments",
     icon: Building2,
