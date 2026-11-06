@@ -530,7 +530,9 @@ export default function SupportLogsPage() {
                   </span>
                 </div>
                 <h2 className="text-lg font-semibold leading-tight">
-                  {viewLog.title /* <- replace with your "Outdoor Repairing" field */}
+			{viewLog.status
+  ? viewLog.status.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase())
+  : "-"}
                 </h2>
                 <p className="text-xs text-muted-foreground">
                   {formatDate(viewLog.issue_date)}
