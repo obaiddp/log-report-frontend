@@ -7,13 +7,14 @@ import {
   deleteUser,
   getRoles,
   getUsers,
+  getDepartments,
   updateUser,
   type Role,
   type User,
+  type Department,
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -55,6 +57,7 @@ type FormState = {
   password: string;
   designation: string;
   role_id: string;
+  department_id: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -63,19 +66,51 @@ const EMPTY_FORM: FormState = {
   password: "",
   designation: "",
   role_id: "",
+  department_id: "",
 };
+
+type PasswordFieldProps = {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+};
+
+function PasswordField({ id, value, onChange, placeholder }: PasswordFieldProps) {
+  const [show, setShow] = useState(false);
+
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        type={show ? "text" : "password"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="pr-10"
+      />
+      <button
+        type="button"
+        onClick={() => setShow((prev) => !prev)}
+        aria-label={show ? "Hide password" : "Show password"}
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+      >
+        {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+      </button>
+    </div>
+  );
+}
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
-  //const [showCreatePassword, setShowCreatePassword] = useState(false);
-  const [showEditPassword, setShowEditPassword] = useState(false);
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [formError, setFormError] = useState("");
@@ -89,13 +124,12 @@ export default function UsersPage() {
       try {
         setLoading(true);
         setError("");
-        const [usersResponse, rolesResponse] = await Promise.all([
-          getUsers(),
-          getRoles(),
-        ]);
+        const [usersResponse, rolesResponse, departmentsResponse] =
+          await Promise.all([getUsers(), getRoles(), getDepartments()]);
         if (cancelled) return;
         setUsers(usersResponse.data);
         setRoles(rolesResponse.data);
+        setDepartments(departmentsResponse.data);
       } catch (err) {
         if (!cancelled) setError(errorMessage(err));
       } finally {
@@ -108,6 +142,14 @@ export default function UsersPage() {
       cancelled = true;
     };
   }, []);
+
+  const departmentOptions = departments
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((department) => ({
+      value: String(department.id),
+      label: department.name,
+    }));
 
   function roleName(roleId: number): string {
     const role = roles.find((r) => r.id === roleId);
@@ -127,6 +169,7 @@ export default function UsersPage() {
       password: "",
       designation: user.designation ?? "",
       role_id: String(user.role_id),
+      department_id: user.department_id ? String(user.department_id) : "",
     });
     setFormError("");
     setEditingUser(user);
@@ -139,6 +182,7 @@ export default function UsersPage() {
     if (!form.password.trim()) errors.push("Password is required.");
     if (!form.designation.trim()) errors.push("Designation is required.");
     if (!form.role_id) errors.push("Role is required.");
+    if (!form.department_id) errors.push("Department is required.");
 
     if (errors.length > 0) {
       setFormError(errors.join(" "));
@@ -154,6 +198,7 @@ export default function UsersPage() {
         password: form.password,
         designation: form.designation.trim(),
         role_id: Number(form.role_id),
+        department_id: Number(form.department_id),
       });
       setUsers((prev) => [...prev, response.data]);
       setCreateOpen(false);
@@ -179,6 +224,10 @@ export default function UsersPage() {
       setFormError("Role is required.");
       return;
     }
+    if (!form.department_id) {
+      setFormError("Department is required.");
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -187,6 +236,7 @@ export default function UsersPage() {
         name: form.name.trim(),
         designation: form.designation.trim(),
         role_id: Number(form.role_id),
+        department_id: Number(form.department_id),
         password: form.password.trim() ? form.password : undefined,
       });
       setUsers((prev) =>
@@ -246,13 +296,17 @@ export default function UsersPage() {
                 <TableHead>Email</TableHead>
                 <TableHead>Designation</TableHead>
                 <TableHead>Role</TableHead>
+                {/* <TableHead>Department</TableHead> */}
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {users.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                  <TableCell
+                    colSpan={6}
+                    className="py-10 text-center text-muted-foreground"
+                  >
                     No users found.
                   </TableCell>
                 </TableRow>
@@ -263,6 +317,7 @@ export default function UsersPage() {
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{user.designation ?? "—"}</TableCell>
                     <TableCell>{roleName(user.role_id)}</TableCell>
+                    {/* <TableCell>{user.department?.name ?? "—"}</TableCell> */}
                     <TableCell className="space-x-1 text-right">
                       <Button
                         id={`btn-edit-user-${user.id}`}
@@ -293,54 +348,75 @@ export default function UsersPage() {
       {/* Create dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent id="dialog-create-user">
+          <DialogHeader>
+            <DialogTitle>New user</DialogTitle>
+            <DialogDescription>
+              Create a new account and assign a role and department.
+            </DialogDescription>
+          </DialogHeader>
+
           <div className="space-y-3">
             <div className="space-y-1.5">
               <label htmlFor="create-name" className="text-sm font-medium">Name</label>
-              <Input id="create-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Full name" />
+              <Input
+                id="create-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="Full name"
+              />
             </div>
+
             <div className="space-y-1.5">
               <label htmlFor="create-email" className="text-sm font-medium">Email</label>
-              <Input id="create-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="you@example.com" />
+              <Input
+                id="create-email"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="you@example.com"
+              />
             </div>
 
+            <div className="space-y-1.5">
+              <label htmlFor="create-password" className="text-sm font-medium">Password</label>
+              <PasswordField
+                id="create-password"
+                value={form.password}
+                onChange={(value) => setForm({ ...form, password: value })}
+                placeholder="Password"
+              />
+            </div>
 
-<div className="space-y-1.5">
-  <label htmlFor="create-password" className="text-sm font-medium">
-    Password
-  </label>
-
-  <div className="relative">
-  <Input
-    id="edit-password"
-    type={showEditPassword ? "text" : "password"}
-    value={form.password}
-    onChange={(e) => setForm({ ...form, password: e.target.value })}
-    placeholder="Leave blank to keep current"
-    className="pr-10"
-  />
-
-  <button
-    type="button"
-    onClick={() => setShowEditPassword((prev) => !prev)}
-    aria-label={showEditPassword ? "Hide password" : "Show password"}
-    className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
-  >
-    {showEditPassword ? (
-      <EyeOff className="size-4" />
-    ) : (
-      <Eye className="size-4" />
-    )}
-  </button>
-</div>
-</div>
+            <div className="space-y-1.5">
+              <label htmlFor="create-department" className="text-sm font-medium">Department</label>
+              <SearchableSelect
+                id="create-department"
+                value={form.department_id}
+                onChange={(value) => setForm({ ...form, department_id: value })}
+                options={departmentOptions}
+                placeholder={loading ? "Loading departments..." : "Select department"}
+                searchPlaceholder="Search department..."
+                disabled={loading || submitting}
+              />
+            </div>
 
             <div className="space-y-1.5">
               <label htmlFor="create-designation" className="text-sm font-medium">Designation</label>
-              <Input id="create-designation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} placeholder="e.g. Senior Developer" />
+              <Input
+                id="create-designation"
+                value={form.designation}
+                onChange={(e) => setForm({ ...form, designation: e.target.value })}
+                placeholder="e.g. Senior Developer"
+              />
             </div>
+
             <div className="space-y-1.5">
               <label htmlFor="create-role" className="text-sm font-medium">Role</label>
-              <Select id="create-role" value={form.role_id} onChange={(e) => setForm({ ...form, role_id: e.target.value })}>
+              <Select
+                id="create-role"
+                value={form.role_id}
+                onChange={(e) => setForm({ ...form, role_id: e.target.value })}
+              >
                 <option value="">Select role</option>
                 {roles.map((role) => (
                   <option key={role.id} value={role.id}>
@@ -349,13 +425,18 @@ export default function UsersPage() {
                 ))}
               </Select>
             </div>
+
             {formError && (
-              <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{formError}</p>
+              <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {formError}
+              </p>
             )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={submitting}>Cancel</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={submitting}>
+              Cancel
+            </Button>
             <Button id="btn-create-user" onClick={handleCreate} disabled={submitting}>
               {submitting ? "Creating..." : "Create user"}
             </Button>
@@ -364,7 +445,10 @@ export default function UsersPage() {
       </Dialog>
 
       {/* Edit dialog */}
-      <Dialog open={editingUser !== null} onOpenChange={(open) => !open && setEditingUser(null)}>
+      <Dialog
+        open={editingUser !== null}
+        onOpenChange={(open) => !open && setEditingUser(null)}
+      >
         <DialogContent id="dialog-edit-user">
           <DialogHeader>
             <DialogTitle>Edit user</DialogTitle>
@@ -376,15 +460,42 @@ export default function UsersPage() {
           <div className="space-y-3">
             <div className="space-y-1.5">
               <label htmlFor="edit-name" className="text-sm font-medium">Name</label>
-              <Input id="edit-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+              <Input
+                id="edit-name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
             </div>
+
             <div className="space-y-1.5">
               <label htmlFor="edit-designation" className="text-sm font-medium">Designation</label>
-              <Input id="edit-designation" value={form.designation} onChange={(e) => setForm({ ...form, designation: e.target.value })} />
+              <Input
+                id="edit-designation"
+                value={form.designation}
+                onChange={(e) => setForm({ ...form, designation: e.target.value })}
+              />
             </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="edit-department" className="text-sm font-medium">Department</label>
+              <SearchableSelect
+                id="edit-department"
+                value={form.department_id}
+                onChange={(value) => setForm({ ...form, department_id: value })}
+                options={departmentOptions}
+                placeholder={loading ? "Loading departments..." : "Select department"}
+                searchPlaceholder="Search department..."
+                disabled={loading || submitting}
+              />
+            </div>
+
             <div className="space-y-1.5">
               <label htmlFor="edit-role" className="text-sm font-medium">Role</label>
-              <Select id="edit-role" value={form.role_id} onChange={(e) => setForm({ ...form, role_id: e.target.value })}>
+              <Select
+                id="edit-role"
+                value={form.role_id}
+                onChange={(e) => setForm({ ...form, role_id: e.target.value })}
+              >
                 <option value="">Select role</option>
                 {roles.map((role) => (
                   <option key={role.id} value={role.id}>
@@ -393,17 +504,30 @@ export default function UsersPage() {
                 ))}
               </Select>
             </div>
+
             <div className="space-y-1.5">
-              <label htmlFor="edit-password" className="text-sm font-medium">New password (optional)</label>
-              <Input id="edit-password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Leave blank to keep current" />
+              <label htmlFor="edit-password" className="text-sm font-medium">
+                New password (optional)
+              </label>
+              <PasswordField
+                id="edit-password"
+                value={form.password}
+                onChange={(value) => setForm({ ...form, password: value })}
+                placeholder="Leave blank to keep current"
+              />
             </div>
+
             {formError && (
-              <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{formError}</p>
+              <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {formError}
+              </p>
             )}
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingUser(null)} disabled={submitting}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditingUser(null)} disabled={submitting}>
+              Cancel
+            </Button>
             <Button id="btn-save-user" onClick={handleUpdate} disabled={submitting}>
               {submitting ? "Saving..." : "Save changes"}
             </Button>
@@ -412,18 +536,29 @@ export default function UsersPage() {
       </Dialog>
 
       {/* Delete dialog */}
-      <Dialog open={userToDelete !== null} onOpenChange={(open) => !open && setUserToDelete(null)}>
+      <Dialog
+        open={userToDelete !== null}
+        onOpenChange={(open) => !open && setUserToDelete(null)}
+      >
         <DialogContent id="dialog-delete-user">
           <DialogHeader>
             <DialogTitle>Delete user</DialogTitle>
             <DialogDescription>
               Are you sure you want to delete{" "}
-              <span className="font-medium text-foreground">{userToDelete?.name}</span>? This action cannot be undone.
+              <span className="font-medium text-foreground">{userToDelete?.name}</span>? This
+              action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setUserToDelete(null)} disabled={deleting}>Cancel</Button>
-            <Button id="btn-confirm-delete-user" variant="destructive" onClick={handleDelete} disabled={deleting}>
+            <Button variant="outline" onClick={() => setUserToDelete(null)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button
+              id="btn-confirm-delete-user"
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
               {deleting ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>

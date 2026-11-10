@@ -237,6 +237,7 @@ export type CreateUserPayload = {
   password: string;
   designation: string;
   role_id: number;
+  department_id?: number
 };
 
 // Matches updateUserById validation: email is NOT updatable, password optional
@@ -245,6 +246,7 @@ export type UpdateUserPayload = {
   password?: string;
   designation?: string;
   role_id?: number;
+  department_id?: number
 };
 
 // permission: manage_users (super_admin only)
