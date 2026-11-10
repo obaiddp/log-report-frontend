@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useState,
   type FormEvent,
   type ReactNode,
@@ -8,6 +9,7 @@ import {
 } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Save } from "lucide-react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 import {
   ApiError,
@@ -16,6 +18,7 @@ import {
   getDepartments,
   getItems,
   getApprovers,
+  getLocations,
   updateAssetInspection,
   type AssetInspection,
   type AssetInspectionInput,
@@ -23,6 +26,7 @@ import {
   type Department,
   type Item,
   type Approver,
+  type Location as AppLocation,
 } from "@/lib/api";
 import {
   canEditInspection,
@@ -190,7 +194,7 @@ export default function AssetInspectionFormPage() {
   const [inspection, setInspection] = useState<AssetInspection | null>(null);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [items, setItems] = useState<Item[]>([]);
-  // const [users, setUsers] = useState<User[]>([]);
+  const [locations, setLocations] = useState<AppLocation[]>([]);
   const [users, setUsers] = useState<Approver[]>([]);
   const [userAcknowledged, setUserAcknowledged] = useState(true);
 
@@ -199,40 +203,35 @@ export default function AssetInspectionFormPage() {
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  console.log("Locations:::: ", locations);
+
   const loadForm = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
       setFieldErrors({});
 
-      const [departmentsResponse, itemsResponse, usersResponse] = await Promise.all([
-        getDepartments(),
-        getItems(),
-        getApprovers(),
-      ]);
+      const [departmentsResponse, itemsResponse, usersResponse, locationsResponse] =
+        await Promise.all([getDepartments(), getItems(), getApprovers(), getLocations()]);
 
       setDepartments(departmentsResponse.data);
       setItems(itemsResponse.data);
       setUsers(usersResponse.data);
+      console.log("---- LocationsResponse: ", locationsResponse.data);
+      setLocations(locationsResponse.data);
 
+      // A new form starts empty. Only an existing inspection is pre-filled.
       if (id) {
         const inspectionResponse = await getAssetInspection(Number(id));
         setInspection(inspectionResponse.data);
         setForm(toFormState(inspectionResponse.data));
-      } else {
-        setForm((current) => ({
-          ...current,
-          username: current.username || authUser?.name || "",
-          email: current.email || authUser?.email || "",
-          designation: current.designation || authUser?.designation || "",
-        }));
       }
     } catch (loadError) {
       setError(errorMessage(loadError, "Failed to load the inspection form."));
     } finally {
       setLoading(false);
     }
-  }, [authUser, id]);
+  }, [id]);
 
   // The form is never auto-refreshed: a background reload would overwrite
   // what the user is typing. It is fetched once, when the form is opened.
@@ -261,6 +260,45 @@ export default function AssetInspectionFormPage() {
 
   const selectedItem = items.find((item) => String(item.id) === form.itemTypeId);
   const acceptsSpecifications = selectedItem?.has_specification === true;
+
+  const departmentOptions = useMemo(
+    () =>
+      departments
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((department) => ({ value: String(department.id), label: department.name })),
+    [departments]
+  );
+
+  const itemOptions = useMemo(
+    () =>
+      items
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((item) => ({ value: String(item.id), label: item.name })),
+    [items]
+  );
+
+  // The inspection stores the location as text (territory), so the location
+  // name is the value. An older record whose territory is no longer in the
+  // locations list is kept as an extra option so it is not silently lost.
+  const locationOptions = useMemo(() => {
+    const options = locations
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((location) => ({ value: location.name, label: location.name }));
+
+    if (form.territory && !options.some((option) => option.value === form.territory)) {
+      options.unshift({ value: form.territory, label: form.territory });
+    }
+
+    return options;
+  }, [locations, form.territory]);
+
+  const adminOptions = useMemo(
+    () => users.map((approver) => ({ value: String(approver.id), label: approver.name })),
+    [users]
+  );
 
   const preparedByLabel = inspection
     ? preparedByName(inspection)
@@ -377,6 +415,8 @@ export default function AssetInspectionFormPage() {
     );
   }
 
+  const isIct = authUser?.department?.code === "ict";
+
   return (
     <form id="asset-inspection-form" onSubmit={handleSubmit} className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -418,251 +458,238 @@ export default function AssetInspectionFormPage() {
         </div>
       ) : (
         <>
-          { authUser?.department?.code === "ict" && (
+          {isIct && (
             <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Item belongs to</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Field id="inspection-username" label="Full name" required error={fieldErrors.username}>
-                <Input
-                  id="inspection-username"
-                  value={form.username}
-                  onChange={(event) => updateField("username", event.target.value)}
-                  disabled={submitting}
-                  autoComplete="name"
-                />
-              </Field>
+              <CardHeader>
+                <CardTitle className="text-base">Item belongs to</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <Field id="inspection-username" label="Full name" required error={fieldErrors.username}>
+                  <Input
+                    id="inspection-username"
+                    value={form.username}
+                    onChange={(event) => updateField("username", event.target.value)}
+                    disabled={submitting}
+                    autoComplete="off"
+                  />
+                </Field>
 
-              <Field id="inspection-designation" label="Designation" error={fieldErrors.designation}>
-                <Input
-                  id="inspection-designation"
-                  value={form.designation}
-                  onChange={(event) => updateField("designation", event.target.value)}
-                  disabled={submitting}
-                />
-              </Field>
+                <Field id="inspection-designation" label="Designation" error={fieldErrors.designation}>
+                  <Input
+                    id="inspection-designation"
+                    value={form.designation}
+                    onChange={(event) => updateField("designation", event.target.value)}
+                    disabled={submitting}
+                    autoComplete="off"
+                  />
+                </Field>
 
-              <Field id="inspection-email" label="Email" error={fieldErrors.email}>
-                <Input
-                  id="inspection-email"
-                  type="email"
-                  value={form.email}
-                  onChange={(event) => updateField("email", event.target.value)}
-                  disabled={submitting}
-                  autoComplete="email"
-                />
-              </Field>
+                <Field id="inspection-email" label="Email" error={fieldErrors.email}>
+                  <Input
+                    id="inspection-email"
+                    type="email"
+                    value={form.email}
+                    onChange={(event) => updateField("email", event.target.value)}
+                    disabled={submitting}
+                    autoComplete="off"
+                  />
+                </Field>
 
-              <Field id="inspection-cell" label="Cell" error={fieldErrors.cell}>
-                <Input
-                  id="inspection-cell"
-                  type="tel"
-                  value={form.cell}
-                  onChange={(event) => updateField("cell", event.target.value)}
-                  disabled={submitting}
-                  autoComplete="tel"
-                />
-              </Field>
+                <Field id="inspection-cell" label="Cell" error={fieldErrors.cell}>
+                  <Input
+                    id="inspection-cell"
+                    type="tel"
+                    value={form.cell}
+                    onChange={(event) => updateField("cell", event.target.value)}
+                    disabled={submitting}
+                    autoComplete="off"
+                  />
+                </Field>
 
-              <Field
-                id="inspection-department"
-                label="Department"
-                required
-                error={fieldErrors.departmentId}
-              >
-                <Select
+                <Field
                   id="inspection-department"
-                  value={form.departmentId}
-                  onChange={(event) => updateField("departmentId", event.target.value)}
-                  disabled={submitting}
+                  label="Department"
+                  required
+                  error={fieldErrors.departmentId}
                 >
-                  <option value="">Select department</option>
-                  {departments
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((department) => (
-                      <option key={department.id} value={department.id}>
-                        {department.name}
-                      </option>
-                    ))}
-                </Select>
-              </Field>
+                  <SearchableSelect
+                    id="inspection-department"
+                    value={form.departmentId}
+                    onChange={(value) => updateField("departmentId", value)}
+                    options={departmentOptions}
+                    placeholder="Select department"
+                    searchPlaceholder="Search department..."
+                    disabled={submitting}
+                  />
+                </Field>
 
-              <Field id="inspection-territory" label="Territory / location" error={fieldErrors.territory}>
-                <Input
-                  id="inspection-territory"
-                  value={form.territory}
-                  onChange={(event) => updateField("territory", event.target.value)}
-                  disabled={submitting}
-                />
-              </Field>
-            </CardContent>
-          </Card>
+                <Field id="inspection-territory" label="Location" error={fieldErrors.territory}>
+                  <SearchableSelect
+                    id="inspection-territory"
+                    value={form.territory}
+                    onChange={(value) => updateField("territory", value)}
+                    options={locationOptions}
+                    placeholder="Select location"
+                    searchPlaceholder="Search location..."
+                    disabled={submitting}
+                  />
+                </Field>
+              </CardContent>
+            </Card>
           )}
 
-
-          { authUser?.department?.code === "ict" && (
+          {isIct && (
             <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Item details</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <Field
-                id="inspection-item-type"
-                label="Item type"
-                required
-                error={fieldErrors.itemTypeId}
-                hint={
-                  selectedItem && !acceptsSpecifications
-                    ? "This item type does not record hardware specifications."
-                    : undefined
-                }
-              >
-                <Select
+              <CardHeader>
+                <CardTitle className="text-base">Item details</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <Field
                   id="inspection-item-type"
-                  value={form.itemTypeId}
-                  onChange={(event) => handleItemTypeChange(event.target.value)}
-                  disabled={submitting}
+                  label="Item type"
+                  required
+                  error={fieldErrors.itemTypeId}
+                  hint={
+                    selectedItem && !acceptsSpecifications
+                      ? "This item type does not record hardware specifications."
+                      : undefined
+                  }
                 >
-                  <option value="">Select item type</option>
-                  {items
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name}
+                  <SearchableSelect
+                    id="inspection-item-type"
+                    value={form.itemTypeId}
+                    onChange={handleItemTypeChange}
+                    options={itemOptions}
+                    placeholder="Select item type"
+                    searchPlaceholder="Search item type..."
+                    disabled={submitting}
+                  />
+                </Field>
+
+                <Field id="inspection-status" label="Status" error={fieldErrors.status}>
+                  <Select
+                    id="inspection-status"
+                    value={form.status}
+                    onChange={(event) => updateField("status", event.target.value)}
+                    disabled={submitting}
+                  >
+                    <option value="">Select status</option>
+
+                    {INSPECTION_STATUSES.map((statusItem) => (
+                      <option key={statusItem} value={statusItem}>
+                        {statusItem.replace(/_/g, " ")}
                       </option>
                     ))}
-                </Select>
-              </Field>
+                  </Select>
+                </Field>
 
-              <Field id="inspection-status" label="Status" error={fieldErrors.status}>
-                <Select
-                  id="inspection-status"
-                  value={form.status}
-                  onChange={(event) => updateField("status", event.target.value)}
-                  disabled={submitting}
-                >
-                  <option value="">Select status</option>
+                <Field id="inspection-item-tag" label="Item tag" error={fieldErrors.item_tag}>
+                  <Input
+                    id="inspection-item-tag"
+                    value={form.itemTag}
+                    onChange={(event) => updateField("itemTag", event.target.value)}
+                    disabled={submitting}
+                  />
+                </Field>
 
-                  {INSPECTION_STATUSES.map((statusItem) => (
-                    <option key={statusItem} value={statusItem}>
-                      {statusItem.replace(/_/g, " ")}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+                <Field id="inspection-brand" label="Brand" required error={fieldErrors.brand}>
+                  <Input
+                    id="inspection-brand"
+                    value={form.brand}
+                    onChange={(event) => updateField("brand", event.target.value)}
+                    disabled={submitting}
+                  />
+                </Field>
 
-              <Field id="inspection-item-tag" label="Item tag" error={fieldErrors.item_tag}>
-                <Input
-                  id="inspection-item-tag"
-                  value={form.itemTag}
-                  onChange={(event) => updateField("itemTag", event.target.value)}
-                  disabled={submitting}
-                />
-              </Field>
+                <Field id="inspection-model" label="Model" required error={fieldErrors.model}>
+                  <Input
+                    id="inspection-model"
+                    value={form.model}
+                    onChange={(event) => updateField("model", event.target.value)}
+                    disabled={submitting}
+                  />
+                </Field>
 
-              <Field id="inspection-brand" label="Brand" required error={fieldErrors.brand}>
-                <Input
-                  id="inspection-brand"
-                  value={form.brand}
-                  onChange={(event) => updateField("brand", event.target.value)}
-                  disabled={submitting}
-                />
-              </Field>
+                <Field id="inspection-serial" label="Serial number" error={fieldErrors.serial_number}>
+                  <Input
+                    id="inspection-serial"
+                    value={form.serialNumber}
+                    onChange={(event) => updateField("serialNumber", event.target.value)}
+                    disabled={submitting}
+                  />
+                </Field>
 
-              <Field id="inspection-model" label="Model" required error={fieldErrors.model}>
-                <Input
-                  id="inspection-model"
-                  value={form.model}
-                  onChange={(event) => updateField("model", event.target.value)}
-                  disabled={submitting}
-                />
-              </Field>
-
-              <Field id="inspection-serial" label="Serial number" error={fieldErrors.serial_number}>
-                <Input
-                  id="inspection-serial"
-                  value={form.serialNumber}
-                  onChange={(event) => updateField("serialNumber", event.target.value)}
-                  disabled={submitting}
-                />
-              </Field>
-
-              
-
-              {acceptsSpecifications && (
-                <>
-                  <Field
-                    id="inspection-ram"
-                    label="RAM"
-                    error={fieldErrors.ram}
-                    className="sm:col-span-2 lg:col-span-3"
-                  >
-                    <Input
+                {acceptsSpecifications && (
+                  <>
+                    <Field
                       id="inspection-ram"
-                      value={form.ram}
-                      onChange={(event) => updateField("ram", event.target.value)}
-                      disabled={submitting}
-                      placeholder="e.g. 16 GB"
-                    />
-                  </Field>
+                      label="RAM"
+                      error={fieldErrors.ram}
+                      className="sm:col-span-2 lg:col-span-3"
+                    >
+                      <Input
+                        id="inspection-ram"
+                        value={form.ram}
+                        onChange={(event) => updateField("ram", event.target.value)}
+                        disabled={submitting}
+                        placeholder="e.g. 16 GB"
+                      />
+                    </Field>
 
-                  <Field id="inspection-generation" label="Generation" error={fieldErrors.generation}>
-                    <Input
-                      id="inspection-generation"
-                      value={form.generation}
-                      onChange={(event) => updateField("generation", event.target.value)}
-                      disabled={submitting}
-                      placeholder="e.g. 13th Gen"
-                    />
-                  </Field>
+                    <Field id="inspection-generation" label="Generation" error={fieldErrors.generation}>
+                      <Input
+                        id="inspection-generation"
+                        value={form.generation}
+                        onChange={(event) => updateField("generation", event.target.value)}
+                        disabled={submitting}
+                        placeholder="e.g. 13th Gen"
+                      />
+                    </Field>
 
-                  <Field id="inspection-hard-drive" label="Hard drive" error={fieldErrors.hard_drive}>
-                    <Input
-                      id="inspection-hard-drive"
-                      value={form.hardDrive}
-                      onChange={(event) => updateField("hardDrive", event.target.value)}
-                      disabled={submitting}
-                      placeholder="e.g. 512 GB SSD"
-                    />
-                  </Field>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                    <Field id="inspection-hard-drive" label="Hard drive" error={fieldErrors.hard_drive}>
+                      <Input
+                        id="inspection-hard-drive"
+                        value={form.hardDrive}
+                        onChange={(event) => updateField("hardDrive", event.target.value)}
+                        disabled={submitting}
+                        placeholder="e.g. 512 GB SSD"
+                      />
+                    </Field>
+                  </>
+                )}
+              </CardContent>
+            </Card>
           )}
-
 
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Inspection findings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {(authUser?.department?.code === "ict") && (
+              {isIct && (
                 <Field id="inspection-problem" label="Item problem" error={fieldErrors.item_problem}>
-                <Textarea
-                  id="inspection-problem"
-                  rows={3}
-                  value={form.itemProblem}
-                  onChange={(event) => updateField("itemProblem", event.target.value)}
-                  disabled={submitting}
-                  placeholder="Describe the problem reported with the item..."
-                />
-              </Field>
+                  <Textarea
+                    id="inspection-problem"
+                    rows={3}
+                    value={form.itemProblem}
+                    onChange={(event) => updateField("itemProblem", event.target.value)}
+                    disabled={submitting}
+                    placeholder="Describe the problem reported with the item..."
+                  />
+                </Field>
               )}
 
-              {(authUser?.department?.code === "ict") && (
-
-<Field id="inspection-it-remarks" label="IT remarks" error={fieldErrors.it_remarks}>
-                <Textarea
-                  id="inspection-it-remarks"
-                  rows={3}
-                  value={form.itRemarks}
-                  onChange={(event) => updateField("itRemarks", event.target.value)}
-                  disabled={submitting}
-                  placeholder="Findings and recommendations from the IT team..."
-                />
-              </Field>
+              {isIct && (
+                <Field id="inspection-it-remarks" label="IT remarks" error={fieldErrors.it_remarks}>
+                  <Textarea
+                    id="inspection-it-remarks"
+                    rows={3}
+                    value={form.itRemarks}
+                    onChange={(event) => updateField("itRemarks", event.target.value)}
+                    disabled={submitting}
+                    placeholder="Findings and recommendations from the IT team..."
+                  />
+                </Field>
               )}
             </CardContent>
           </Card>
@@ -673,23 +700,18 @@ export default function AssetInspectionFormPage() {
             </CardHeader>
 
             <CardContent className="space-y-4">
-              <Field
-                id="inspection-prepared-by"
-                label="Prepared by"
-                hint="Recorded automatically from your account."
-              >
+              <Field id="inspection-prepared-by" label="Prepared by">
                 <p id="inspection-prepared-by" className="text-sm text-foreground">
                   {preparedByLabel}
                 </p>
               </Field>
 
-              {(authUser?.department?.code === "ict") && !isEditing && (
+              {isIct && !isEditing && (
                 <Field
                   id="inspection-user-acknowledged"
                   label="User acknowledged"
                   required
                   error={fieldErrors.userAcknowledged}
-                  hint="Confirm that the person bringing the item acknowledged these details."
                 >
                   <div className="flex items-center gap-2 text-sm">
                     <input
@@ -706,14 +728,13 @@ export default function AssetInspectionFormPage() {
             </CardContent>
           </Card>
 
-          { authUser?.department?.code === "ict" && (
+          {isIct && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Select Admin</CardTitle>
               </CardHeader>
 
               <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-
                 <Field
                   id="inspection-admin"
                   label="Admin User"
@@ -721,28 +742,19 @@ export default function AssetInspectionFormPage() {
                   error={fieldErrors.adminId}
                   hint="The admin receives the inspection for approval."
                 >
-                  <Select
+                  <SearchableSelect
                     id="inspection-admin"
                     value={form.adminId}
-                    onChange={(event) => updateField("adminId", event.target.value)}
+                    onChange={(value) => updateField("adminId", value)}
+                    options={adminOptions}
+                    placeholder="Select admin user"
+                    searchPlaceholder="Search admin..."
                     disabled={submitting}
-                  >
-                    <option value="">Select admin user</option>
-
-                    {users
-                      .map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.name}
-                        </option>
-                      ))}
-                  </Select>
+                  />
                 </Field>
-
               </CardContent>
             </Card>
-            )
-          }
-
+          )}
         </>
       )}
 

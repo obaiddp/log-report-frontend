@@ -77,6 +77,8 @@ function formatStatus(status: string): string {
 
 export default function SupportLogsPage() {
   const { user } = useAuth();
+  const hideWorkedBy = user?.role?.name === "ict_staff";
+
   const [supportLogs, setSupportLogs] = useState<SupportLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
   const [logsError, setLogsError] = useState("");
@@ -372,14 +374,17 @@ export default function SupportLogsPage() {
                   <TableHead>Item</TableHead>
                   <TableHead>Issue Type</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Worked By</TableHead>
+
+
+                  {!hideWorkedBy && <TableHead>Worked By</TableHead>}
+                  
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredLogs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10} className="py-10 text-center text-muted-foreground">
+                    <TableCell colSpan={hideWorkedBy ? 7 : 8} className="py-10 text-center text-muted-foreground">
                       No support logs found. Try adjusting the filters, or create a new log.
                     </TableCell>
                   </TableRow>
@@ -416,7 +421,11 @@ export default function SupportLogsPage() {
                         </Select>
 
                       </TableCell>
-                      <TableCell>{log.assigned_resource?.name ?? "-"}</TableCell>
+                      
+                      {!hideWorkedBy && (
+                        <TableCell>{log.assigned_resource?.name ?? "-"}</TableCell>
+                      )}
+
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           <Button
@@ -477,17 +486,8 @@ export default function SupportLogsPage() {
   </DialogContent>
 </Dialog>
 
-      {/* <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-  <DialogContent id="dialog-create-log" className="max-w-3xl gap-0 overflow-hidden p-0">
-    <SupportLogForm
-      onLogCreated={handleLogCreated}
-      onCancel={() => setCreateOpen(false)}
-    />
-  </DialogContent>
-</Dialog> */}
 
-
-
+      {/* View popup */}
       <Dialog
         open={viewLoading || viewLog !== null || viewError !== ""}
         onOpenChange={(open) => {
@@ -597,11 +597,13 @@ export default function SupportLogsPage() {
                   </span>
                 </p>
               </div>
+
             </div>
           ) : null}
         </DialogContent>
       </Dialog>
 
+      {/* Delete popup */}
       <Dialog open={logToDelete !== null} onOpenChange={(open) => !open && setLogToDelete(null)}>
         <DialogContent id="dialog-delete-log">
           <DialogHeader>
