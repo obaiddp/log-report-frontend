@@ -33,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import SupportLogForm from "@/components/SupportLogForm";
+import ColumnFilter, { type FilterOption } from "@/components/ColumnFilter";
 import { useAuth } from "@/context/AuthContext";
 
 // Put this helper outside the component (or in your utils file)
@@ -47,7 +48,7 @@ const STATUS_LABELS: Record<SupportLogStatus, string> = {
   outdoor_repairing: "Outdoor Repairing",
   resolved: "Resolved",
   in_progress: "In Progress",
-  closed: "Closed"
+  closed: "Closed",
 };
 
 const STATUS_SELECT_CLASSES: Record<SupportLogStatus, string> = {
@@ -57,6 +58,36 @@ const STATUS_SELECT_CLASSES: Record<SupportLogStatus, string> = {
   in_progress: "bg-amber-100 text-amber-800 border-transparent",
   closed: "bg-slate-200 text-slate-700 border-transparent",
 };
+
+// Each filter holds the list of selected values. Empty list = no filter.
+type FilterKey =
+  | "date"
+  | "initiated_by"
+  | "department"
+  | "item"
+  | "issue_type"
+  | "status"
+  | "worked_by";
+
+type ColumnFilters = Record<FilterKey, string[]>;
+
+const EMPTY_FILTERS: ColumnFilters = {
+  date: [],
+  initiated_by: [],
+  department: [],
+  item: [],
+  issue_type: [],
+  status: [],
+  worked_by: [],
+};
+
+const uniqueSorted = (values: (string | undefined | null)[]) =>
+  Array.from(new Set(values.filter(Boolean) as string[])).sort((a, b) =>
+    a.localeCompare(b)
+  );
+
+const toOptions = (values: string[]): FilterOption[] =>
+  values.map((v) => ({ value: v, label: v }));
 
 function formatStatus(status: string): string {
   switch (status) {
@@ -84,8 +115,10 @@ export default function SupportLogsPage() {
   const [logsError, setLogsError] = useState("");
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [departmentFilter, setDepartmentFilter] = useState("");
+  const [filters, setFilters] = useState<ColumnFilters>(EMPTY_FILTERS);
+
+  const applyFilter = (key: FilterKey, values: string[]) =>
+    setFilters((prev) => ({ ...prev, [key]: values }));
 
   const [createOpen, setCreateOpen] = useState(false);
   const [createdTicket, setCreatedTicket] = useState("");
@@ -166,7 +199,9 @@ export default function SupportLogsPage() {
     ]);
 
     const csv = [headers, ...rows]
-      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(","))
+      .map((row) =>
+        row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")
+      )
       .join("\n");
 
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -218,20 +253,6 @@ export default function SupportLogsPage() {
 
   // UI scoping only — the API currently returns all logs to every
   // authenticated user. The backend must enforce this server-side.
-  // const visibleLogs = useMemo(() => {
-  //   if ( !user) {
-  //     return supportLogs; 
-  //   }
-
-  //   if (user.role?.name === "super_admin") {
-  //     return supportLogs;
-  //   }
-
-  //   return supportLogs.filter(
-  //     (log) => log.created_by === user.id || log.assigned_to === user.id
-  //   );
-  // }, [supportLogs, user]);
-
   const visibleLogs = useMemo(() => {
     if (!user) {
       return supportLogs;
@@ -246,38 +267,105 @@ export default function SupportLogsPage() {
     );
   }, [supportLogs, user]);
 
-  const filteredLogs = visibleLogs.filter((log) => {
+  // Options shown in each column's filter popover
+  const filterOptions = useMemo(() => {
+    const dates = Array.from(
+      new Set(visibleLogs.map((l) => l.issue_date.split("T")[0]))
+    )
+      .sort()
+      .reverse(); // newest first
+
+    return {
+      dates: dates.map((d) => ({ value: d, label: formatDate(d) })),
+      initiatedBy: toOptions(uniqueSorted(visibleLogs.map((l) => l.initiated_by))),
+      departments: toOptions(
+        uniqueSorted(visibleLogs.map((l) => l.department?.name))
+      ),
+      items: toOptions(uniqueSorted(visibleLogs.map((l) => l.item_type?.name))),
+      issueTypes: toOptions(
+        uniqueSorted(
+          visibleLogs.flatMap((l) => l.issue_types?.map((i) => i.name) ?? [])
+        )
+      ),
+      statuses: (Object.keys(STATUS_LABELS) as SupportLogStatus[]).map((s) => ({
+        value: s,
+        label: STATUS_LABELS[s],
+      })),
+      workers: toOptions(
+        uniqueSorted(visibleLogs.map((l) => l.assigned_resource?.name))
+      ),
+    };
+  }, [visibleLogs]);
+
+  const filteredLogs = useMemo(() => {
     const searchText = search.toLowerCase();
+    // const matches = (selected: string[], value?: string | null) =>
+    //   selected.length === 0 || (value != null && selected.includes(value));
 
-    const matchesSearch =
-      log.ticket_number.toLowerCase().includes(searchText) ||
-      log.initiated_by.toLowerCase().includes(searchText) ||
-      log.issue_details?.toLowerCase().includes(searchText) ||
-      log.assigned_resource?.name?.toLowerCase().includes(searchText);
+    const matches = (selected: string[], value?: string | null) =>
+  selected.length === 0 || (value != null && selected.includes(value));
 
-    const matchesStatus = !statusFilter || log.status === statusFilter;
-    const matchesDepartment =
-      !departmentFilter || String(log.department_id) === departmentFilter;
+// ADD THIS
+const matchesIssueTypes = (
+  selected: string[],
+  issueTypes?: { name: string }[] | null
+) => {
+  if (selected.length === 0) return true;
 
-    return matchesSearch && matchesStatus && matchesDepartment;
-  });
+  const logTypes = new Set((issueTypes ?? []).map((i) => i.name));
+
+  return (
+    logTypes.size === selected.length &&
+    selected.every((name) => logTypes.has(name))
+  );
+};
+
+    return visibleLogs.filter((log) => {
+      const matchesSearch =
+        log.ticket_number.toLowerCase().includes(searchText) ||
+        log.initiated_by.toLowerCase().includes(searchText) ||
+        log.issue_details?.toLowerCase().includes(searchText) ||
+        log.assigned_resource?.name?.toLowerCase().includes(searchText);
+
+      const matchesColumns =
+        matches(filters.date, log.issue_date.split("T")[0]) &&
+        matches(filters.initiated_by, log.initiated_by) &&
+        matches(filters.department, log.department?.name) &&
+        matches(filters.item, log.item_type?.name) &&
+        matchesIssueTypes(filters.issue_type, log.issue_types) &&
+        matches(filters.status, log.status) &&
+        matches(filters.worked_by, log.assigned_resource?.name);
+
+      return matchesSearch && matchesColumns;
+    });
+  }, [visibleLogs, search, filters]);
+
+  const hasActiveFilters =
+    search !== "" || Object.values(filters).some((v) => v.length > 0);
 
   return (
     <div id="support-logs-page" className="space-y-4">
-      <div id="support-logs-header" className="flex flex-wrap items-center justify-between gap-3">
+      <div
+        id="support-logs-header"
+        className="flex flex-wrap items-center justify-between gap-3"
+      >
         <div>
           <h2 className="text-lg font-semibold text-foreground">Support Logs</h2>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button id="btn-export-csv" variant="outline" size="sm" onClick={handleExport}>
+          <Button
+            id="btn-export-csv"
+            variant="outline"
+            size="sm"
+            onClick={handleExport}
+          >
             <Download className="size-4" /> Export CSV
           </Button>
 
           <Button id="btn-new-log" size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="size-4" /> New Log
           </Button>
-
         </div>
       </div>
 
@@ -289,7 +377,6 @@ export default function SupportLogsPage() {
 
       <Card>
         <CardHeader className="space-y-3">
-
           <div className="flex flex-wrap items-center gap-2">
             <Input
               id="filter-search"
@@ -300,49 +387,15 @@ export default function SupportLogsPage() {
               className="w-full sm:w-64"
             />
 
-            <Select
-              id="filter-status"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-44"
-            >
-              <option value="">All statuses</option>
-              <option value="in_progress">In Progress</option>
-              <option value="indoor_repairing">Indoor Repairing</option>
-              <option value="outdoor_repairing">Outdoor Repairing</option>
-              <option value="resolved">Resolved</option>
-              <option value="closed">Closed</option>
-            </Select>
-
-            <Select
-              id="filter-department"
-              value={departmentFilter}
-              onChange={(e) => setDepartmentFilter(e.target.value)}
-              className="w-44"
-            >
-              <option value="">All departments</option>
-              {Array.from(
-                new Map(
-                  supportLogs.map((log) => [log.department_id, log.department])
-                ).values()
-              ).map((department) =>
-                department ? (
-                  <option key={department.id} value={department.id}>
-                    {department.name}
-                  </option>
-                ) : null
-              )}
-            </Select>
-
             <Button
               id="btn-clear-filters"
               type="button"
               variant="ghost"
               size="sm"
+              disabled={!hasActiveFilters}
               onClick={() => {
                 setSearch("");
-                setStatusFilter("");
-                setDepartmentFilter("");
+                setFilters(EMPTY_FILTERS);
               }}
             >
               Clear filters
@@ -368,24 +421,104 @@ export default function SupportLogsPage() {
               <caption className="sr-only">Support logs</caption>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Initiated By</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Item</TableHead>
-                  <TableHead>Issue Type</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      Date
+                      <ColumnFilter
+                        label="Date"
+                        options={filterOptions.dates}
+                        selected={filters.date}
+                        onApply={(v) => applyFilter("date", v)}
+                      />
+                    </div>
+                  </TableHead>
 
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      Initiated By
+                      <ColumnFilter
+                        label="Initiated By"
+                        options={filterOptions.initiatedBy}
+                        selected={filters.initiated_by}
+                        onApply={(v) => applyFilter("initiated_by", v)}
+                      />
+                    </div>
+                  </TableHead>
 
-                  {!hideWorkedBy && <TableHead>Worked By</TableHead>}
-                  
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      Department
+                      <ColumnFilter
+                        label="Department"
+                        options={filterOptions.departments}
+                        selected={filters.department}
+                        onApply={(v) => applyFilter("department", v)}
+                      />
+                    </div>
+                  </TableHead>
+
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      Item
+                      <ColumnFilter
+                        label="Item"
+                        options={filterOptions.items}
+                        selected={filters.item}
+                        onApply={(v) => applyFilter("item", v)}
+                      />
+                    </div>
+                  </TableHead>
+
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      Issue Type
+                      <ColumnFilter
+                        label="Issue Type"
+                        options={filterOptions.issueTypes}
+                        selected={filters.issue_type}
+                        onApply={(v) => applyFilter("issue_type", v)}
+                      />
+                    </div>
+                  </TableHead>
+
+                  <TableHead>
+                    <div className="flex items-center gap-1">
+                      Status
+                      <ColumnFilter
+                        label="Status"
+                        options={filterOptions.statuses}
+                        selected={filters.status}
+                        onApply={(v) => applyFilter("status", v)}
+                      />
+                    </div>
+                  </TableHead>
+
+                  {!hideWorkedBy && (
+                    <TableHead>
+                      <div className="flex items-center gap-1">
+                        Worked By
+                        <ColumnFilter
+                          label="Worked By"
+                          options={filterOptions.workers}
+                          selected={filters.worked_by}
+                          onApply={(v) => applyFilter("worked_by", v)}
+                        />
+                      </div>
+                    </TableHead>
+                  )}
+
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredLogs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={hideWorkedBy ? 7 : 8} className="py-10 text-center text-muted-foreground">
-                      No support logs found. Try adjusting the filters, or create a new log.
+                    <TableCell
+                      colSpan={hideWorkedBy ? 7 : 8}
+                      className="py-10 text-center text-muted-foreground"
+                    >
+                      No support logs found. Try adjusting the filters, or create a
+                      new log.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -398,30 +531,34 @@ export default function SupportLogsPage() {
                       <TableCell>{log.department?.name ?? "-"}</TableCell>
                       <TableCell>{log.item_type?.name ?? "-"}</TableCell>
                       <TableCell>
-                        {log.issue_types?.map((issue) => issue.name).join(", ") || "-"}
+                        {log.issue_types?.map((issue) => issue.name).join(", ") ||
+                          "-"}
                       </TableCell>
                       <TableCell>
-
                         <Select
                           id={`status-select-${log.id}`}
                           value={log.status}
                           onChange={(e) =>
-                            handleStatusChange(log.id, e.target.value as SupportLogStatus)
+                            handleStatusChange(
+                              log.id,
+                              e.target.value as SupportLogStatus
+                            )
                           }
                           className={cn(
                             "h-8 min-w-40 rounded-full text-xs font-medium",
                             STATUS_SELECT_CLASSES[log.status]
                           )}
                         >
-                          {(Object.keys(STATUS_LABELS) as SupportLogStatus[]).map((s) => (
-                            <option key={s} value={s}>
-                              {STATUS_LABELS[s]}
-                            </option>
-                          ))}
+                          {(Object.keys(STATUS_LABELS) as SupportLogStatus[]).map(
+                            (s) => (
+                              <option key={s} value={s}>
+                                {STATUS_LABELS[s]}
+                              </option>
+                            )
+                          )}
                         </Select>
-
                       </TableCell>
-                      
+
                       {!hideWorkedBy && (
                         <TableCell>{log.assigned_resource?.name ?? "-"}</TableCell>
                       )}
@@ -466,26 +603,22 @@ export default function SupportLogsPage() {
         </CardContent>
       </Card>
 
+      {/* Create popup */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-         
-
-
-  <DialogContent id="dialog-create-log" className="max-w-2xl">
-     <DialogHeader>
+        <DialogContent id="dialog-create-log" className="max-w-2xl">
+          <DialogHeader>
             <DialogTitle>New support log</DialogTitle>
             <DialogDescription>
               Fill in the details of the reported issue.
             </DialogDescription>
           </DialogHeader>
-        
-    
-    <SupportLogForm
-      onLogCreated={handleLogCreated}
-      onCancel={() => setCreateOpen(false)}
-    />
-  </DialogContent>
-</Dialog>
 
+          <SupportLogForm
+            onLogCreated={handleLogCreated}
+            onCancel={() => setCreateOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* View popup */}
       <Dialog
@@ -497,7 +630,10 @@ export default function SupportLogsPage() {
           }
         }}
       >
-        <DialogContent id="dialog-view-log" className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent
+          id="dialog-view-log"
+          className="max-w-2xl max-h-[85vh] overflow-y-auto"
+        >
           {/* Required by Radix for accessibility, hidden visually */}
           <DialogTitle className="sr-only">Log details</DialogTitle>
 
@@ -514,7 +650,7 @@ export default function SupportLogsPage() {
             </p>
           ) : viewLog ? (
             <div className="space-y-5">
-              {/* Header: ticket, title, date */}
+              {/* Header: ticket, status, date */}
               <div className="space-y-1 border-b pb-4 pr-6">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-xs tracking-wide text-muted-foreground/70">
@@ -529,7 +665,7 @@ export default function SupportLogsPage() {
                     {formatStatus(viewLog.status)}
                   </span>
                 </div>
-                
+
                 <p className="text-xs text-muted-foreground">
                   {formatDate(viewLog.issue_date)}
                 </p>
@@ -545,7 +681,9 @@ export default function SupportLogsPage() {
                       </th>
                       <td className="px-4 py-2.5 font-medium">
                         <p>
-                          <span className="font-medium">{viewLog.initiated_by}</span>{" "}
+                          <span className="font-medium">
+                            {viewLog.initiated_by}
+                          </span>{" "}
                           <span className="text-muted-foreground">
                             ({viewLog.department?.name ?? "-"})
                           </span>
@@ -558,7 +696,9 @@ export default function SupportLogsPage() {
                       </th>
                       <td className="px-4 py-2.5 font-medium">
                         <p>
-                          <span className="font-medium">{viewLog.item_type?.name ?? "-"}</span>{" "}
+                          <span className="font-medium">
+                            {viewLog.item_type?.name ?? "-"}
+                          </span>{" "}
                           <span className="text-muted-foreground">
                             (
                             {viewLog.issue_types?.length
@@ -573,7 +713,6 @@ export default function SupportLogsPage() {
                 </table>
               </div>
 
-
               {/* Description */}
               <div className="space-y-1.5">
                 <p className="whitespace-pre-wrap rounded-md bg-muted/50 p-3 text-sm leading-relaxed">
@@ -581,7 +720,6 @@ export default function SupportLogsPage() {
                 </p>
               </div>
 
-              {/* Table-style details */}
               {/* Footer: worked by / created by */}
               <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t pt-3 text-xs text-muted-foreground">
                 <p>
@@ -597,14 +735,16 @@ export default function SupportLogsPage() {
                   </span>
                 </p>
               </div>
-
             </div>
           ) : null}
         </DialogContent>
       </Dialog>
 
       {/* Delete popup */}
-      <Dialog open={logToDelete !== null} onOpenChange={(open) => !open && setLogToDelete(null)}>
+      <Dialog
+        open={logToDelete !== null}
+        onOpenChange={(open) => !open && setLogToDelete(null)}
+      >
         <DialogContent id="dialog-delete-log">
           <DialogHeader>
             <DialogTitle>Delete support log</DialogTitle>
@@ -617,10 +757,18 @@ export default function SupportLogsPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setLogToDelete(null)} disabled={deleting}>
+            <Button
+              variant="outline"
+              onClick={() => setLogToDelete(null)}
+              disabled={deleting}
+            >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleting}>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+            >
               {deleting ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
